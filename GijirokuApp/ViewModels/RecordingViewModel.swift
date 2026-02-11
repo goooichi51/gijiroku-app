@@ -1,0 +1,96 @@
+import SwiftUI
+
+@MainActor
+class RecordingViewModel: ObservableObject {
+    @Published var isRecording = false
+    @Published var isPaused = false
+    @Published var recordingTime: TimeInterval = 0
+    @Published var audioLevel: Float = 0
+    @Published var showTimeWarning = false
+    @Published var showDiscardAlert = false
+    @Published var errorMessage: String?
+
+    let recorderService = AudioRecorderService()
+    private var recordingURL: URL?
+
+    var formattedTime: String {
+        recorderService.formattedTime
+    }
+
+    var onRecordingComplete: ((URL, TimeInterval) -> Void)?
+
+    init() {
+        setupBindings()
+    }
+
+    private func setupBindings() {
+        recorderService.onTimeWarning = { [weak self] in
+            self?.showTimeWarning = true
+        }
+        recorderService.onMaxDurationReached = { [weak self] in
+            self?.stopRecording()
+        }
+    }
+
+    func startRecording() async {
+        let granted = await recorderService.requestMicrophonePermission()
+        guard granted else {
+            errorMessage = RecordingError.microphonePermissionDenied.errorDescription
+            return
+        }
+
+        do {
+            recordingURL = try recorderService.startRecording()
+            isRecording = true
+            isPaused = false
+
+            // バインディングの更新を監視
+            startObserving()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func togglePause() {
+        if isPaused {
+            recorderService.resumeRecording()
+        } else {
+            recorderService.pauseRecording()
+        }
+        isPaused = recorderService.isPaused
+    }
+
+    func stopRecording() {
+        let duration = recorderService.recordingTime
+        guard let url = recorderService.stopRecording() else { return }
+
+        isRecording = false
+        isPaused = false
+        onRecordingComplete?(url, duration)
+    }
+
+    func requestDiscard() {
+        showDiscardAlert = true
+    }
+
+    func confirmDiscard() {
+        recorderService.cancelRecording()
+        isRecording = false
+        isPaused = false
+        recordingURL = nil
+    }
+
+    private func startObserving() {
+        // recorderServiceのプロパティ変更を定期的に反映
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+            Task { @MainActor [weak self] in
+                guard let self = self, self.isRecording else {
+                    timer.invalidate()
+                    return
+                }
+                self.recordingTime = self.recorderService.recordingTime
+                self.audioLevel = self.recorderService.audioLevel
+            }
+        }
+    }
+}

@@ -27,6 +27,7 @@ Pods/
 
 # Supabase
 Supabase/.env
+Supabase/.temp/
 
 # OS
 .DS_Store

@@ -38,3 +38,6 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Playwright
+.playwright-mcp/

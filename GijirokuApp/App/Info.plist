@@ -36,5 +36,9 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>SUPABASE_URL</key>
+	<string>https://mbhcyaocfngegssvtdgl.supabase.co</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iaGN5YW9jZm5nZWdzc3Z0ZGdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3OTk1MDcsImV4cCI6MjA4NjM3NTUwN30.fXmec4I46Nvtbvthfsf5tR2ORnxKrzlFpA0Bh5KEE_A</string>
 </dict>
 </plist>

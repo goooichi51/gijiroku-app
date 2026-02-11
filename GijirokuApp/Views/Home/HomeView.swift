@@ -17,7 +17,7 @@ struct HomeView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
-                        SettingsPlaceholderView()
+                        SettingsView()
                     } label: {
                         Image(systemName: "gearshape")
                     }
@@ -85,13 +85,5 @@ struct HomeView: View {
             }
             .padding(.bottom, 8)
         }
-    }
-}
-
-// 設定画面のプレースホルダー（フェーズ7で実装）
-struct SettingsPlaceholderView: View {
-    var body: some View {
-        Text("設定（開発中）")
-            .navigationTitle("設定")
     }
 }

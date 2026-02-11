@@ -44,5 +44,8 @@ targets:
     platform: iOS
     sources:
       - path: GijirokuAppTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: GijirokuApp

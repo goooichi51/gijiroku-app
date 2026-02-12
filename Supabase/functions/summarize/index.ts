@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const GLM_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-const GLM_API_KEY = Deno.env.get("GLM_API_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,27 +43,29 @@ serve(async (req) => {
       );
     }
 
-    // GLM-4.7-Flash API呼び出し
-    const response = await fetch(GLM_API_URL, {
+    // Gemini Flash API呼び出し
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${GLM_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "glm-4-flash",
-        messages: [
-          { role: "system", content: prompt },
-          { role: "user", content: transcription },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `${prompt}\n\n---\n\n${transcription}` }],
+          },
         ],
-        temperature: 0.3,
-        response_format: { type: "json_object" },
+        generationConfig: {
+          temperature: 0.3,
+          responseMimeType: "application/json",
+        },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("GLM API error:", errorText);
+      console.error("Gemini API error:", errorText);
       return new Response(
         JSON.stringify({ error: "AI要約の生成に失敗しました" }),
         {
@@ -75,7 +76,8 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const summary = data.choices?.[0]?.message?.content ?? "";
+    const summary =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     return new Response(JSON.stringify({ summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -11,7 +11,7 @@
 | アプリ | **Swift / SwiftUI**（iOS 16+ / watchOS 10+） |
 | 文字起こし | **WhisperKit**（ローカル、CoreML + Apple Neural Engine） |
 | 話者識別 | **SpeakerKit**（ローカル、Argmax社） |
-| AI要約 | **GLM-4.7-Flash API**（Zhipu AI） |
+| AI要約 | **Gemini 2.0 Flash API**（Google） |
 | バックエンド | **Supabase**（認証・データ同期・APIキー保護） |
 | Watch連携 | **WCSession (transferFile)** |
 
@@ -55,7 +55,7 @@ gijoroku_app_v2/
 ### 重要な設計方針
 - **音声データは端末外に出さない**（プライバシー最重要）
 - **文字起こしは完全ローカル**（WhisperKit、APIコスト0）
-- **AI要約のみサーバー通信**（GLM-4.7-Flash、テキストデータのみ送信）
+- **AI要約のみサーバー通信**（Gemini 2.0 Flash、テキストデータのみ送信）
 - **APIキーはアプリに埋め込まない**（Supabase Edge Function経由で呼び出し）
 
 ### テスト
@@ -70,7 +70,7 @@ gijoroku_app_v2/
 | 音声録音 | iPhone / Apple Watch（最大4時間、Watch は30分毎に継続確認） |
 | AI文字起こし | WhisperKit large-v3-turbo（ローカル処理） |
 | 話者識別 | SpeakerKit（ローカル処理） |
-| AI議事録要約 | GLM-4.7-Flash API → テンプレート別出力（標準/簡易/商談/ブレスト） |
+| AI議事録要約 | Gemini 2.0 Flash API → テンプレート別出力（標準/簡易/商談/ブレスト） |
 | PDF出力 | A4フォーマット、iOS共有シートで共有 |
 | 認証 | Apple ID / メール（Supabase Auth） |
 

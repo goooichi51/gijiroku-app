@@ -11,8 +11,8 @@ struct RecordingView: View {
             VStack(spacing: 0) {
                 // 経過時間
                 Text(viewModel.formattedTime)
-                    .font(.system(size: 56, weight: .light, design: .monospaced))
-                    .padding(.top, 60)
+                    .font(.system(size: 48, weight: .light, design: .monospaced))
+                    .padding(.top, 40)
 
                 if viewModel.isPaused {
                     Text("一時停止中")
@@ -23,11 +23,16 @@ struct RecordingView: View {
 
                 // 波形表示
                 AudioWaveformView(level: viewModel.audioLevel)
-                    .frame(height: 100)
+                    .frame(height: 80)
                     .padding(.horizontal, 20)
-                    .padding(.top, 40)
+                    .padding(.top, 20)
 
-                Spacer()
+                // リアルタイム文字起こしプレビュー
+                if viewModel.showLiveTranscription {
+                    liveTranscriptionView
+                } else {
+                    Spacer()
+                }
 
                 // 残り10分警告
                 if viewModel.showTimeWarning {
@@ -45,7 +50,6 @@ struct RecordingView: View {
 
                 // 操作ボタン
                 HStack(spacing: 60) {
-                    // 一時停止/再開ボタン
                     Button {
                         viewModel.togglePause()
                     } label: {
@@ -59,7 +63,6 @@ struct RecordingView: View {
                         }
                     }
 
-                    // 停止ボタン
                     Button {
                         viewModel.stopRecording()
                     } label: {
@@ -73,7 +76,7 @@ struct RecordingView: View {
                         }
                     }
                 }
-                .padding(.bottom, 60)
+                .padding(.bottom, 40)
             }
             .navigationTitle("録音中")
             .navigationBarTitleDisplayMode(.inline)
@@ -117,5 +120,49 @@ struct RecordingView: View {
                 }
             }
         }
+    }
+
+    private var liveTranscriptionView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "text.bubble")
+                    .foregroundColor(.accentColor)
+                Text("リアルタイム文字起こし")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                if viewModel.liveTranscription.liveText.isEmpty {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("音声を認識中...")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(viewModel.liveTranscription.liveText.isEmpty
+                         ? "録音中の音声をリアルタイムで文字起こしします..."
+                         : viewModel.liveTranscription.liveText)
+                        .font(.subheadline)
+                        .foregroundColor(viewModel.liveTranscription.liveText.isEmpty ? .secondary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .id("transcriptionBottom")
+                }
+                .onChange(of: viewModel.liveTranscription.liveText) { _ in
+                    withAnimation {
+                        proxy.scrollTo("transcriptionBottom", anchor: .bottom)
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: 200)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .padding(.horizontal)
+        .padding(.top, 16)
     }
 }

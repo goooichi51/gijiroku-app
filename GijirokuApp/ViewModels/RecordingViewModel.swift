@@ -9,8 +9,11 @@ class RecordingViewModel: ObservableObject {
     @Published var showTimeWarning = false
     @Published var showDiscardAlert = false
     @Published var errorMessage: String?
+    @Published var showLiveTranscription = false
 
     let recorderService = AudioRecorderService()
+    let liveTranscription = LiveTranscriptionManager()
+    private let transcriptionService = TranscriptionService()
     private var recordingURL: URL?
 
     var formattedTime: String {
@@ -44,10 +47,23 @@ class RecordingViewModel: ObservableObject {
             isRecording = true
             isPaused = false
 
-            // バインディングの更新を監視
             startObserving()
+
+            // WhisperKitモデルが利用可能ならリアルタイム文字起こしを開始
+            await startLiveTranscriptionIfAvailable()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func startLiveTranscriptionIfAvailable() async {
+        do {
+            try await transcriptionService.initialize()
+            showLiveTranscription = true
+            await liveTranscription.start(whisperKit: transcriptionService.whisperKit)
+        } catch {
+            // モデル未ダウンロードなどの場合はリアルタイム文字起こしをスキップ
+            showLiveTranscription = false
         }
     }
 
@@ -62,6 +78,8 @@ class RecordingViewModel: ObservableObject {
 
     func stopRecording() {
         let duration = recorderService.recordingTime
+        liveTranscription.stop()
+
         guard let url = recorderService.stopRecording() else { return }
 
         isRecording = false
@@ -74,6 +92,7 @@ class RecordingViewModel: ObservableObject {
     }
 
     func confirmDiscard() {
+        liveTranscription.stop()
         recorderService.cancelRecording()
         isRecording = false
         isPaused = false
@@ -81,7 +100,6 @@ class RecordingViewModel: ObservableObject {
     }
 
     private func startObserving() {
-        // recorderServiceのプロパティ変更を定期的に反映
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRecording else {

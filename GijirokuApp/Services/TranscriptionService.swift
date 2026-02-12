@@ -7,7 +7,7 @@ class TranscriptionService: ObservableObject {
     @Published var progress: Double = 0.0
     @Published var currentText: String = ""
 
-    private var whisperKit: WhisperKit?
+    private(set) var whisperKit: WhisperKit?
 
     var isModelLoaded: Bool {
         whisperKit != nil

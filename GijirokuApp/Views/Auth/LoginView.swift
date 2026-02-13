@@ -1,8 +1,10 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = AuthViewModel()
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -19,7 +21,36 @@ struct LoginView: View {
                         .bold()
                 }
 
-                // フォーム
+                // Apple IDログインボタン
+                SignInWithAppleButton(.signIn) { request in
+                    let hashedNonce = authService.prepareAppleSignIn()
+                    request.requestedScopes = [.email, .fullName]
+                    request.nonce = hashedNonce
+                } onCompletion: { result in
+                    Task {
+                        await authService.handleAppleSignIn(result: result)
+                    }
+                }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: 50)
+                .cornerRadius(12)
+                .padding(.horizontal, 30)
+
+                // 区切り線
+                HStack {
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(.systemGray4))
+                    Text("または")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(.systemGray4))
+                }
+                .padding(.horizontal, 30)
+
+                // メールフォーム
                 VStack(spacing: 16) {
                     TextField("メールアドレス", text: $viewModel.email)
                         .textFieldStyle(.roundedBorder)
@@ -59,7 +90,7 @@ struct LoginView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                         } else {
-                            Text(viewModel.isSignUp ? "アカウント作成" : "ログイン")
+                            Text(viewModel.isSignUp ? "アカウント作成" : "メールでログイン")
                                 .frame(maxWidth: .infinity)
                                 .padding()
                         }

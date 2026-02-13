@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TemplateSelectionView: View {
     @Binding var selected: MeetingTemplate
+    @ObservedObject private var planManager = PlanManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -11,14 +12,24 @@ struct TemplateSelectionView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(MeetingTemplate.allCases) { template in
+                        let isAvailable = planManager.isTemplateAvailable(template)
                         TemplateCard(
                             template: template,
-                            isSelected: selected == template
+                            isSelected: selected == template,
+                            isLocked: !isAvailable
                         ) {
-                            selected = template
+                            if isAvailable {
+                                selected = template
+                            }
                         }
                     }
                 }
+            }
+
+            if planManager.currentPlan == .free {
+                Text("Standardプランで全テンプレートが利用可能")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -27,40 +38,52 @@ struct TemplateSelectionView: View {
 struct TemplateCard: View {
     let template: MeetingTemplate
     let isSelected: Bool
+    var isLocked: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: template.icon)
-                    .font(.title2)
-                    .foregroundColor(isSelected ? .white : .blue)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: template.icon)
+                        .font(.title2)
+                        .foregroundColor(isLocked ? .secondary : (isSelected ? .white : .blue))
+
+                    if isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .offset(x: 8, y: -4)
+                    }
+                }
 
                 Text(template.displayName)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .foregroundColor(isLocked ? .secondary : (isSelected ? .white : .primary))
 
                 Text(template.description)
                     .font(.caption2)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                    .foregroundColor(isLocked ? .secondary.opacity(0.7) : (isSelected ? .white.opacity(0.8) : .secondary))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
-                if isSelected {
+                if isSelected && !isLocked {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.white)
                 }
             }
             .frame(width: 120, height: 140)
             .padding(12)
-            .background(isSelected ? Color.blue : Color(.systemGray6))
+            .background(isLocked ? Color(.systemGray5) : (isSelected ? Color.blue : Color(.systemGray6)))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                    .stroke(isSelected && !isLocked ? Color.blue : Color.clear, lineWidth: 2)
             )
+            .opacity(isLocked ? 0.7 : 1.0)
         }
         .buttonStyle(.plain)
+        .disabled(isLocked)
     }
 }

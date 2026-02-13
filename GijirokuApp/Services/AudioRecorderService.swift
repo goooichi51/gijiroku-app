@@ -16,7 +16,17 @@ class AudioRecorderService: NSObject, ObservableObject {
     private var pauseStartTime: Date?
 
     static let maxDuration: TimeInterval = 4 * 60 * 60 // 4時間
-    private static let warningThreshold: TimeInterval = maxDuration - 10 * 60 // 残り10分
+
+    /// プランに応じた録音時間上限（未設定時はmaxDuration）
+    var overrideMaxDuration: TimeInterval?
+
+    private var effectiveMaxDuration: TimeInterval {
+        overrideMaxDuration ?? Self.maxDuration
+    }
+
+    private var warningThreshold: TimeInterval {
+        effectiveMaxDuration - 10 * 60
+    }
 
     var onTimeWarning: (() -> Void)?
     var onMaxDurationReached: (() -> Void)?
@@ -164,12 +174,12 @@ class AudioRecorderService: NSObject, ObservableObject {
         recordingTime = Date().timeIntervalSince(startTime) - currentPauseDuration
 
         // 残り10分で警告
-        if recordingTime >= Self.warningThreshold && recordingTime < Self.warningThreshold + 0.2 {
+        if recordingTime >= warningThreshold && recordingTime < warningThreshold + 0.2 {
             onTimeWarning?()
         }
 
-        // 4時間で自動停止
-        if recordingTime >= Self.maxDuration {
+        // 上限で自動停止
+        if recordingTime >= effectiveMaxDuration {
             onMaxDurationReached?()
         }
     }

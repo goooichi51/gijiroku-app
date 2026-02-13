@@ -45,13 +45,29 @@ struct MeetingCreationView: View {
                     .cornerRadius(12)
                 }
 
-                // AI議事録生成ボタン
+                // AI要約プラン制限表示
+                if viewModel.canGenerateSummary && !PlanManager.shared.canUseSummarization {
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(.orange)
+                        Text("AI議事録はStandardプランで利用可能")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                }
+
+                // 議事録保存/生成ボタン
                 Button {
                     saveMeeting()
                 } label: {
                     HStack {
-                        Image(systemName: viewModel.canGenerateSummary ? "wand.and.stars" : "doc.badge.plus")
-                        Text(viewModel.canGenerateSummary ? "AI議事録を生成" : "議事録を保存")
+                        let canSummarize = viewModel.canGenerateSummary && PlanManager.shared.canUseSummarization
+                        Image(systemName: canSummarize ? "wand.and.stars" : "doc.badge.plus")
+                        Text(canSummarize ? "AI議事録を生成" : "議事録を保存")
                     }
                     .frame(maxWidth: .infinity)
                     .padding()

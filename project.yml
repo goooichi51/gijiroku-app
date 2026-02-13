@@ -34,6 +34,7 @@ targets:
         INFOPLIST_FILE: GijirokuApp/App/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.gijiroku.app
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: GijirokuApp/App/GijirokuApp.entitlements
     dependencies:
       - package: WhisperKit
       - package: Supabase

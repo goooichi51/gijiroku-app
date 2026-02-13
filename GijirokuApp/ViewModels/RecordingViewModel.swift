@@ -27,6 +27,9 @@ class RecordingViewModel: ObservableObject {
     }
 
     private func setupBindings() {
+        let maxDuration = PlanManager.shared.maxRecordingDuration
+        recorderService.overrideMaxDuration = maxDuration
+
         recorderService.onTimeWarning = { [weak self] in
             self?.showTimeWarning = true
         }
@@ -84,6 +87,7 @@ class RecordingViewModel: ObservableObject {
 
         isRecording = false
         isPaused = false
+        PlanManager.shared.recordMeetingUsage()
         onRecordingComplete?(url, duration)
     }
 

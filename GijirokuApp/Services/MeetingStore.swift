@@ -4,6 +4,7 @@ import Foundation
 class MeetingStore: ObservableObject {
     @Published var meetings: [Meeting] = []
 
+    let syncService = SyncService()
     private let storageKey = "meetings_data"
     private let userDefaults: UserDefaults
 
@@ -38,6 +39,7 @@ class MeetingStore: ObservableObject {
     func add(_ meeting: Meeting) {
         meetings.insert(meeting, at: 0)
         save()
+        Task { await syncService.uploadMeeting(meeting) }
     }
 
     func update(_ meeting: Meeting) {
@@ -46,17 +48,30 @@ class MeetingStore: ObservableObject {
             updated.updatedAt = Date()
             meetings[index] = updated
             save()
+            Task { await syncService.uploadMeeting(updated) }
         }
     }
 
     func delete(_ meeting: Meeting) {
-        meetings.removeAll { $0.id == meeting.id }
+        let id = meeting.id
+        meetings.removeAll { $0.id == id }
         save()
+        Task { await syncService.deleteMeeting(id: id) }
     }
 
     func delete(at offsets: IndexSet) {
+        let ids = offsets.map { meetings[$0].id }
         meetings.remove(atOffsets: offsets)
         save()
+        Task {
+            for id in ids {
+                await syncService.deleteMeeting(id: id)
+            }
+        }
+    }
+
+    func syncWithCloud() async {
+        await syncService.sync(store: self)
     }
 
     func search(query: String) -> [Meeting] {

@@ -33,30 +33,48 @@ struct MeetingDetailView: View {
 
             // 下部ボタン
             VStack(spacing: 12) {
-                NavigationLink {
-                    PDFPreviewView(meeting: viewModel.meeting)
-                } label: {
-                    HStack {
-                        Image(systemName: "doc.text")
-                        Text("PDFプレビュー")
+                if PlanManager.shared.canExportPDF {
+                    NavigationLink {
+                        PDFPreviewView(meeting: viewModel.meeting)
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.text")
+                            Text("PDFプレビュー")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
-                }
 
-                Button {
-                    generateAndShare()
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("共有（LINE等）")
+                    Button {
+                        generateAndShare()
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("共有（LINE等）")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                     }
-                    .frame(maxWidth: .infinity)
+                } else {
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(.orange)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("PDF出力・共有はStandardプランで利用可能")
+                                .font(.subheadline)
+                            Text("アップグレードで議事録をPDFとして保存・共有できます")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.1))
                     .cornerRadius(12)
                 }
             }

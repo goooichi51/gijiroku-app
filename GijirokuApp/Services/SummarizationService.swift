@@ -15,6 +15,10 @@ class SummarizationService: ObservableObject {
         errorMessage = nil
         defer { isSummarizing = false }
 
+        guard NetworkMonitor.shared.isConnected else {
+            throw SummarizationError.networkError("インターネット接続がありません。Wi-Fiまたはモバイルデータを確認してください。")
+        }
+
         let prompt = PromptTemplates.buildPrompt(
             template: template,
             metadata: metadata

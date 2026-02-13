@@ -31,6 +31,41 @@ struct MeetingDetailView: View {
                 FullTextTabView(segments: viewModel.meeting.transcriptionSegments ?? [])
             }
 
+            // AI要約生成
+            if viewModel.canGenerateSummary {
+                Button {
+                    Task {
+                        await viewModel.generateSummary()
+                        if viewModel.hasSummary {
+                            meetingStore.update(viewModel.meeting)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "wand.and.stars")
+                        Text("AI議事録を生成")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.purple)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+            }
+
+            if viewModel.isSummarizing {
+                ProgressView("AI議事録を生成中...")
+                    .padding()
+            }
+
+            if let error = viewModel.summarizationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+            }
+
             // 下部ボタン
             VStack(spacing: 12) {
                 if PlanManager.shared.canExportPDF {

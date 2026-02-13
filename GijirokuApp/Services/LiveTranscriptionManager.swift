@@ -1,158 +1,106 @@
+import Foundation
+import Speech
 import AVFoundation
-import WhisperKit
 
 @MainActor
 class LiveTranscriptionManager: ObservableObject {
     @Published var liveText: String = ""
     @Published var isActive = false
 
+    private var analyzer: SpeechAnalyzer?
+    private var transcriber: SpeechTranscriber?
     private var audioEngine: AVAudioEngine?
-    private var audioSamples: [Float] = []
-    private var transcriptionTimer: Timer?
-    private var whisperKit: WhisperKit?
-    private var isProcessing = false
+    private var transcriptionTask: Task<Void, Never>?
 
-    private let sampleRate: Double = 16000
-    private let transcriptionInterval: TimeInterval = 15
-    // 最後に文字起こし済みのサンプル位置
-    private var lastTranscribedSampleCount: Int = 0
-    private var allTranscribedText: String = ""
+    func start() async {
+        guard !isActive else { return }
 
-    func start(whisperKit: WhisperKit?) async {
-        guard let whisperKit = whisperKit else { return }
-        self.whisperKit = whisperKit
-        audioSamples = []
-        lastTranscribedSampleCount = 0
-        allTranscribedText = ""
         liveText = ""
         isActive = true
 
-        setupAudioEngine()
-        startTranscriptionTimer()
+        let transcriber = SpeechTranscriber(
+            locale: Locale(identifier: "ja-JP"),
+            preset: .progressiveTranscription
+        )
+        self.transcriber = transcriber
+
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        self.analyzer = analyzer
+
+        // マイク音声をAsyncStreamとしてSpeechAnalyzerに流す
+        let audioEngine = AVAudioEngine()
+        self.audioEngine = audioEngine
+
+        let inputNode = audioEngine.inputNode
+        let audioFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
+            compatibleWith: [transcriber],
+            considering: inputNode.outputFormat(forBus: 0)
+        )
+        guard let format = audioFormat else {
+            isActive = false
+            return
+        }
+
+        let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
+            continuation.yield(AnalyzerInput(buffer: buffer))
+        }
+
+        do {
+            try audioEngine.start()
+        } catch {
+            print("AudioEngine起動失敗: \(error.localizedDescription)")
+            isActive = false
+            return
+        }
+
+        // SpeechAnalyzerに音声ストリームを供給
+        Task {
+            do {
+                try await analyzer.start(inputSequence: stream)
+            } catch {
+                if !Task.isCancelled {
+                    print("SpeechAnalyzer入力エラー: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        // 文字起こし結果を受け取る
+        transcriptionTask = Task {
+            do {
+                for try await result in transcriber.results {
+                    guard !Task.isCancelled else { break }
+                    let text = String(result.text.characters)
+                    if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        liveText = text
+                    }
+                }
+            } catch {
+                if !Task.isCancelled {
+                    print("リアルタイム文字起こしエラー: \(error.localizedDescription)")
+                }
+            }
+
+            await MainActor.run {
+                self.isActive = false
+            }
+        }
     }
 
     func stop() {
-        isActive = false
-        transcriptionTimer?.invalidate()
-        transcriptionTimer = nil
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
 
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil
-        audioSamples = []
-    }
 
-    private func setupAudioEngine() {
-        audioEngine = AVAudioEngine()
-        guard let engine = audioEngine else { return }
-
-        let inputNode = engine.inputNode
-        let recordingFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: sampleRate,
-            channels: 1,
-            interleaved: false
-        )!
-
-        // 入力フォーマットに合わせてコンバータを使う
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-
-        // コンバータが必要な場合に対応
-        if inputFormat.sampleRate != sampleRate || inputFormat.channelCount != 1 {
-            inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
-                self?.processBuffer(buffer, inputSampleRate: inputFormat.sampleRate)
-            }
-        } else {
-            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
-                self?.appendSamples(from: buffer)
-            }
+        Task {
+            await analyzer?.cancelAndFinishNow()
         }
-
-        do {
-            try engine.start()
-        } catch {
-            print("AudioEngine起動失敗: \(error.localizedDescription)")
-        }
-    }
-
-    private func processBuffer(_ buffer: AVAudioPCMBuffer, inputSampleRate: Double) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
-        let frameCount = Int(buffer.frameLength)
-
-        // ダウンサンプリング（簡易版）
-        let ratio = inputSampleRate / sampleRate
-        var resampled: [Float] = []
-        resampled.reserveCapacity(Int(Double(frameCount) / ratio))
-
-        var index: Double = 0
-        while Int(index) < frameCount {
-            resampled.append(channelData[Int(index)])
-            index += ratio
-        }
-
-        Task { @MainActor in
-            self.audioSamples.append(contentsOf: resampled)
-        }
-    }
-
-    private func appendSamples(from buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
-        let frameCount = Int(buffer.frameLength)
-        let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
-
-        Task { @MainActor in
-            self.audioSamples.append(contentsOf: samples)
-        }
-    }
-
-    private func startTranscriptionTimer() {
-        transcriptionTimer = Timer.scheduledTimer(
-            withTimeInterval: transcriptionInterval,
-            repeats: true
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                await self?.transcribeLatestChunk()
-            }
-        }
-    }
-
-    private func transcribeLatestChunk() async {
-        guard !isProcessing, isActive, let whisperKit = whisperKit else { return }
-
-        let currentSampleCount = audioSamples.count
-        // 最低2秒分のサンプルが溜まってから処理
-        let minSamples = Int(sampleRate * 2)
-        guard currentSampleCount - lastTranscribedSampleCount >= minSamples else { return }
-
-        isProcessing = true
-        defer { isProcessing = false }
-
-        // 全体の音声を渡して文字起こし（累積方式）
-        let samplesToTranscribe = Array(audioSamples.prefix(currentSampleCount))
-
-        let options = DecodingOptions(
-            task: .transcribe,
-            language: "ja",
-            temperature: 0.0,
-            usePrefillPrompt: true,
-            skipSpecialTokens: true,
-            noSpeechThreshold: 0.6
-        )
-
-        do {
-            let results = try await whisperKit.transcribe(
-                audioArray: samplesToTranscribe,
-                decodeOptions: options
-            )
-
-            let text = results.map { $0.text }.joined()
-            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                allTranscribedText = text
-                liveText = allTranscribedText
-                lastTranscribedSampleCount = currentSampleCount
-            }
-        } catch {
-            print("リアルタイム文字起こしエラー: \(error.localizedDescription)")
-        }
+        analyzer = nil
+        transcriber = nil
+        isActive = false
     }
 }

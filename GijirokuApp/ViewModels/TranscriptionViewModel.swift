@@ -22,11 +22,6 @@ class TranscriptionViewModel: ObservableObject {
     }
 
     func transcribe(audioURL: URL) async {
-        guard transcriptionService.isModelLoaded else {
-            errorMessage = TranscriptionError.notInitialized.errorDescription
-            return
-        }
-
         isTranscribing = true
         progress = 0
         errorMessage = nil

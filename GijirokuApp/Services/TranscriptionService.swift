@@ -1,5 +1,6 @@
 import Foundation
-import WhisperKit
+import Speech
+import AVFoundation
 
 @MainActor
 class TranscriptionService: ObservableObject {
@@ -7,27 +8,34 @@ class TranscriptionService: ObservableObject {
     @Published var progress: Double = 0.0
     @Published var currentText: String = ""
 
-    private(set) var whisperKit: WhisperKit?
+    private var analyzer: SpeechAnalyzer?
+    private var isReady = false
 
-    var isModelLoaded: Bool {
-        whisperKit != nil
-    }
-
-    func initialize(modelName: String? = nil) async throws {
-        let config = WhisperKitConfig(
-            model: modelName,
-            verbose: true,
-            logLevel: .info,
-            prewarm: true,
-            load: true,
-            download: true
-        )
-        whisperKit = try await WhisperKit(config)
+    func initialize() async throws {
+        let status = SFSpeechRecognizer.authorizationStatus()
+        if status == .notDetermined {
+            let granted = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { status in
+                    continuation.resume(returning: status == .authorized)
+                }
+            }
+            guard granted else {
+                throw TranscriptionError.permissionDenied
+            }
+        } else if status != .authorized {
+            throw TranscriptionError.permissionDenied
+        }
+        isReady = true
     }
 
     func transcribe(audioPath: String) async throws -> (text: String, segments: [TranscriptionSegment]) {
-        guard let whisperKit = whisperKit else {
+        guard isReady else {
             throw TranscriptionError.notInitialized
+        }
+
+        let audioURL = URL(fileURLWithPath: audioPath)
+        guard FileManager.default.fileExists(atPath: audioPath) else {
+            throw TranscriptionError.transcriptionFailed("音声ファイルが見つかりません")
         }
 
         isTranscribing = true
@@ -36,49 +44,56 @@ class TranscriptionService: ObservableObject {
         defer {
             isTranscribing = false
             progress = 1.0
+            analyzer = nil
         }
 
-        let options = DecodingOptions(
-            task: .transcribe,
-            language: "ja",
-            temperature: 0.0,
-            usePrefillPrompt: true,
-            skipSpecialTokens: true,
-            noSpeechThreshold: 0.6,
-            chunkingStrategy: .vad
+        let transcriber = SpeechTranscriber(
+            locale: Locale(identifier: "ja-JP"),
+            preset: .timeIndexedTranscriptionWithAlternatives
         )
 
-        let results = try await whisperKit.transcribe(
-            audioPath: audioPath,
-            decodeOptions: options,
-            callback: { [weak self] progressInfo in
-                Task { @MainActor [weak self] in
-                    self?.currentText = progressInfo.text
-                    // progressInfoのテキスト長から概算進捗を計算
-                    if !progressInfo.text.isEmpty {
-                        self?.progress = min(0.95, (self?.progress ?? 0) + 0.01)
-                    }
-                }
-                return nil
-            }
+        let audioFile = try AVAudioFile(forReading: audioURL)
+        let analyzer = try await SpeechAnalyzer(
+            inputAudioFile: audioFile,
+            modules: [transcriber],
+            finishAfterFile: true
         )
+        self.analyzer = analyzer
 
-        let fullText = results.map { $0.text }.joined()
-        let segments = results.flatMap { result in
-            result.segments.map { segment in
-                TranscriptionSegment(
-                    startTime: TimeInterval(segment.start),
-                    endTime: TimeInterval(segment.end),
-                    text: segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
+        var allText = ""
+        var allSegments: [TranscriptionSegment] = []
+        var segmentIndex = 0
+
+        do {
+            for try await result in transcriber.results {
+                let text = String(result.text.characters)
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+
+                let startTime = CMTimeGetSeconds(result.range.start)
+                let endTime = CMTimeGetSeconds(CMTimeAdd(result.range.start, result.range.duration))
+
+                allText += text
+                allSegments.append(TranscriptionSegment(
+                    startTime: startTime,
+                    endTime: endTime,
+                    text: text.trimmingCharacters(in: .whitespacesAndNewlines)
+                ))
+                segmentIndex += 1
+                currentText = allText
+                progress = min(0.95, Double(segmentIndex) * 0.05)
             }
+        } catch {
+            throw TranscriptionError.transcriptionFailed(error.localizedDescription)
         }
 
-        return (fullText, segments)
+        return (allText, allSegments)
     }
 
-    func unloadModel() {
-        whisperKit = nil
+    func cancel() {
+        Task {
+            await analyzer?.cancelAndFinishNow()
+        }
+        analyzer = nil
     }
 }
 
@@ -86,17 +101,17 @@ class TranscriptionService: ObservableObject {
 
 enum TranscriptionError: LocalizedError {
     case notInitialized
+    case permissionDenied
     case transcriptionFailed(String)
-    case modelDownloadFailed
 
     var errorDescription: String? {
         switch self {
         case .notInitialized:
-            return "AIモデルが初期化されていません。設定画面からモデルをダウンロードしてください。"
+            return "音声認識が初期化されていません。"
+        case .permissionDenied:
+            return "音声認識の権限が許可されていません。設定アプリから許可してください。"
         case .transcriptionFailed(let detail):
             return "文字起こしに失敗しました: \(detail)"
-        case .modelDownloadFailed:
-            return "AIモデルのダウンロードに失敗しました。Wi-Fi接続を確認してください。"
         }
     }
 }

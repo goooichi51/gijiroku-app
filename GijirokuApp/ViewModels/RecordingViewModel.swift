@@ -13,7 +13,6 @@ class RecordingViewModel: ObservableObject {
 
     let recorderService = AudioRecorderService()
     let liveTranscription = LiveTranscriptionManager()
-    private let transcriptionService = TranscriptionService()
     private var recordingURL: URL?
 
     var formattedTime: String {
@@ -52,22 +51,16 @@ class RecordingViewModel: ObservableObject {
 
             startObserving()
 
-            // WhisperKitモデルが利用可能ならリアルタイム文字起こしを開始
-            await startLiveTranscriptionIfAvailable()
+            // リアルタイム文字起こしを開始
+            await startLiveTranscription()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func startLiveTranscriptionIfAvailable() async {
-        do {
-            try await transcriptionService.initialize()
-            showLiveTranscription = true
-            await liveTranscription.start(whisperKit: transcriptionService.whisperKit)
-        } catch {
-            // モデル未ダウンロードなどの場合はリアルタイム文字起こしをスキップ
-            showLiveTranscription = false
-        }
+    private func startLiveTranscription() async {
+        showLiveTranscription = true
+        await liveTranscription.start()
     }
 
     func togglePause() {

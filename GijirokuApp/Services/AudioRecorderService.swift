@@ -31,7 +31,7 @@ class AudioRecorderService: NSObject, ObservableObject {
     var onTimeWarning: (() -> Void)?
     var onMaxDurationReached: (() -> Void)?
 
-    // WhisperKit推奨の録音設定
+    // 録音設定（16kHz/1ch/PCM）
     private let recordingSettings: [String: Any] = [
         AVFormatIDKey: Int(kAudioFormatLinearPCM),
         AVSampleRateKey: 16000.0,

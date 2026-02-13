@@ -50,12 +50,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section("AI設定") {
-                NavigationLink("モデル管理") {
-                    ModelManagementView()
-                }
-            }
-
             Section("データ") {
                 Button {
                     isSyncing = true

@@ -81,6 +81,12 @@ struct SettingsView: View {
             }
 
             Section("その他") {
+                NavigationLink("プライバシーポリシー") {
+                    PrivacyPolicyView()
+                }
+                NavigationLink("利用規約") {
+                    TermsOfServiceView()
+                }
                 HStack {
                     Text("バージョン")
                     Spacer()

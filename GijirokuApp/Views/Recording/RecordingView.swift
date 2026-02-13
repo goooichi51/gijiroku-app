@@ -152,7 +152,7 @@ struct RecordingView: View {
                         .padding(.horizontal)
                         .id("transcriptionBottom")
                 }
-                .onChange(of: viewModel.liveTranscription.liveText) { _ in
+                .onChange(of: viewModel.liveTranscription.liveText) {
                     withAnimation {
                         proxy.scrollTo("transcriptionBottom", anchor: .bottom)
                     }

@@ -42,11 +42,7 @@ class AudioRecorderService: NSObject, ObservableObject {
     ]
 
     func requestMicrophonePermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                continuation.resume(returning: granted)
-            }
-        }
+        await AVAudioApplication.requestRecordPermission()
     }
 
     func startRecording() throws -> URL {

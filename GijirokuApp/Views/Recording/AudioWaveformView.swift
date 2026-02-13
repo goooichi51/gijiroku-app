@@ -18,7 +18,7 @@ struct AudioWaveformView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onChange(of: level) { newLevel in
+        .onChange(of: level) { _, newLevel in
             levels.removeFirst()
             levels.append(newLevel)
         }

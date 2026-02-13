@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @MainActor
 class RecordingViewModel: ObservableObject {
@@ -14,6 +15,8 @@ class RecordingViewModel: ObservableObject {
     let recorderService = AudioRecorderService()
     let liveTranscription = LiveTranscriptionManager()
     private var recordingURL: URL?
+    private var backgroundObserver: Any?
+    private var foregroundObserver: Any?
 
     var formattedTime: String {
         recorderService.formattedTime
@@ -23,6 +26,12 @@ class RecordingViewModel: ObservableObject {
 
     init() {
         setupBindings()
+        setupBackgroundNotifications()
+    }
+
+    deinit {
+        if let obs = backgroundObserver { NotificationCenter.default.removeObserver(obs) }
+        if let obs = foregroundObserver { NotificationCenter.default.removeObserver(obs) }
     }
 
     private func setupBindings() {
@@ -37,12 +46,46 @@ class RecordingViewModel: ObservableObject {
         }
     }
 
+    private func setupBackgroundNotifications() {
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleEnterBackground()
+            }
+        }
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleEnterForeground()
+            }
+        }
+    }
+
+    private func handleEnterBackground() {
+        guard isRecording else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "録音中"
+        content.body = "バックグラウンドで録音を継続しています"
+        content.sound = nil
+        let request = UNNotificationRequest(identifier: "recording_background", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func handleEnterForeground() {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
+    }
+
     func startRecording() async {
         let granted = await recorderService.requestMicrophonePermission()
         guard granted else {
             errorMessage = RecordingError.microphonePermissionDenied.errorDescription
             return
         }
+
+        // バックグラウンド通知の許可をリクエスト
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
 
         do {
             recordingURL = try recorderService.startRecording()
@@ -80,6 +123,7 @@ class RecordingViewModel: ObservableObject {
 
         isRecording = false
         isPaused = false
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
         PlanManager.shared.recordMeetingUsage()
         onRecordingComplete?(url, duration)
     }
@@ -94,6 +138,7 @@ class RecordingViewModel: ObservableObject {
         isRecording = false
         isPaused = false
         recordingURL = nil
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
     }
 
     private func startObserving() {

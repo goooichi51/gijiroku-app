@@ -5,6 +5,7 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @ObservedObject private var planManager = PlanManager.shared
     @State private var showUpgradeAlert = false
+    @State private var meetingToDelete: Meeting?
 
     var body: some View {
         NavigationStack {
@@ -46,6 +47,26 @@ struct HomeView: View {
             } message: {
                 Text("Freeプランでは月5回まで録音できます。Standardプランにアップグレードすると無制限に録音できます。")
             }
+            .confirmationDialog(
+                "この議事録を削除しますか？",
+                isPresented: Binding(
+                    get: { meetingToDelete != nil },
+                    set: { if !$0 { meetingToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("削除", role: .destructive) {
+                    if let meeting = meetingToDelete {
+                        meetingStore.delete(meeting)
+                        meetingToDelete = nil
+                    }
+                }
+                Button("キャンセル", role: .cancel) {
+                    meetingToDelete = nil
+                }
+            } message: {
+                Text("削除した議事録は元に戻せません。")
+            }
         }
     }
 
@@ -58,26 +79,35 @@ struct HomeView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "mic.circle")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            Text("議事録がありません")
-                .font(.title3)
-                .foregroundColor(.secondary)
-            Text("録音ボタンを押して会議を録音しましょう")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "waveform.circle.fill")
+                .font(.system(size: 80))
+                .foregroundStyle(.purple.opacity(0.6))
+
+            VStack(spacing: 8) {
+                Text("議事録がありません")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                Text("録音ボタンを押して\n会議を録音しましょう")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
             RecordButton {
                 startRecordingIfAllowed()
             }
-            .padding(.top, 10)
+            .padding(.top, 8)
 
             if planManager.currentPlan == .free {
                 freeUsageLabel
             }
+
+            Spacer()
         }
+        .padding()
     }
 
     private var meetingList: some View {
@@ -97,7 +127,9 @@ struct HomeView: View {
                 }
             }
             .onDelete { offsets in
-                meetingStore.delete(at: offsets)
+                if let first = offsets.first {
+                    meetingToDelete = meetingStore.meetings[first]
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {

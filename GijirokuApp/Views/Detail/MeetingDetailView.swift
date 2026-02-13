@@ -3,6 +3,7 @@ import SwiftUI
 struct MeetingDetailView: View {
     @EnvironmentObject var meetingStore: MeetingStore
     @StateObject private var viewModel: MeetingDetailViewModel
+    @StateObject private var audioPlayer = AudioPlayerService()
     @State private var showShareSheet = false
     @State private var pdfData: Data?
 
@@ -12,6 +13,12 @@ struct MeetingDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 音声プレイヤー
+            if let audioPath = viewModel.meeting.audioFilePath,
+               AudioFileManager.shared.fileExists(at: audioPath) {
+                audioPlayerView(path: audioPath)
+            }
+
             // セグメントコントロール
             Picker("表示", selection: $viewModel.selectedTab) {
                 Label("要約", systemImage: "doc.text")
@@ -134,6 +141,54 @@ struct MeetingDetailView: View {
                 let _ = try? data.write(to: tempURL)
                 ShareSheet(activityItems: [tempURL])
             }
+        }
+    }
+
+    private func audioPlayerView(path: String) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                if audioPlayer.duration == 0 {
+                    audioPlayer.load(url: URL(fileURLWithPath: path))
+                }
+                audioPlayer.playPause()
+            } label: {
+                Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 36))
+                    .foregroundColor(.accentColor)
+            }
+
+            if audioPlayer.duration > 0 {
+                VStack(spacing: 4) {
+                    Slider(
+                        value: $audioPlayer.currentTime,
+                        in: 0...max(audioPlayer.duration, 1)
+                    ) { editing in
+                        if !editing {
+                            audioPlayer.seek(to: audioPlayer.currentTime)
+                        }
+                    }
+
+                    HStack {
+                        Text(audioPlayer.formattedCurrentTime)
+                        Spacer()
+                        Text(audioPlayer.formattedDuration)
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+                }
+            } else {
+                Text("音声を再生")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .onDisappear {
+            audioPlayer.stop()
         }
     }
 

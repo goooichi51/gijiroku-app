@@ -62,18 +62,27 @@ struct MeetingCreationView: View {
 
                 // 議事録保存/生成ボタン
                 Button {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
                     saveMeeting()
                 } label: {
                     HStack {
-                        Image(systemName: viewModel.canGenerateSummary ? "wand.and.stars" : "doc.badge.plus")
-                        Text(viewModel.canGenerateSummary ? "AI議事録を生成" : "議事録を保存")
+                        if viewModel.isTranscribing {
+                            ProgressView()
+                                .tint(.white)
+                                .controlSize(.small)
+                            Text("文字起こし中...")
+                        } else {
+                            Image(systemName: viewModel.canGenerateSummary ? "wand.and.stars" : "doc.badge.plus")
+                            Text(viewModel.canGenerateSummary ? "AI議事録を生成" : "議事録を保存")
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue)
+                    .background(viewModel.isTranscribing ? Color.gray : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(12)
                 }
+                .disabled(viewModel.isTranscribing)
 
                 // 文字起こし全文確認リンク
                 if let segments = viewModel.transcriptionSegments, !segments.isEmpty {

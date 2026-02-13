@@ -4,7 +4,10 @@ struct RecordButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            action()
+        } label: {
             ZStack {
                 Circle()
                     .fill(Color.red)

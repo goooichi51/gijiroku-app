@@ -51,6 +51,7 @@ struct RecordingView: View {
                 // 操作ボタン
                 HStack(spacing: 60) {
                     Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         viewModel.togglePause()
                     } label: {
                         VStack(spacing: 8) {
@@ -64,6 +65,7 @@ struct RecordingView: View {
                     }
 
                     Button {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                         viewModel.stopRecording()
                     } label: {
                         VStack(spacing: 8) {

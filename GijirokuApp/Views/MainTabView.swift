@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject var meetingStore: MeetingStore
     @State private var selectedTab = 0
 
     var body: some View {
@@ -16,6 +17,9 @@ struct MainTabView: View {
                     Label("検索", systemImage: "magnifyingglass")
                 }
                 .tag(1)
+        }
+        .task {
+            await meetingStore.syncWithCloud()
         }
     }
 }

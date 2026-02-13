@@ -19,6 +19,10 @@ class MeetingCreationViewModel: ObservableObject {
     private let transcriptionService = TranscriptionService()
 
     var canGenerateSummary: Bool {
+        transcriptionText != nil && !isTranscribing && PlanManager.shared.canUseSummarization
+    }
+
+    var hasTranscription: Bool {
         transcriptionText != nil && !isTranscribing
     }
 

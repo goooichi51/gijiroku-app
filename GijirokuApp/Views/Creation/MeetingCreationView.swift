@@ -46,7 +46,7 @@ struct MeetingCreationView: View {
                 }
 
                 // AI要約プラン制限表示
-                if viewModel.canGenerateSummary && !PlanManager.shared.canUseSummarization {
+                if viewModel.hasTranscription && !PlanManager.shared.canUseSummarization {
                     HStack {
                         Image(systemName: "lock.fill")
                             .foregroundColor(.orange)
@@ -65,9 +65,8 @@ struct MeetingCreationView: View {
                     saveMeeting()
                 } label: {
                     HStack {
-                        let canSummarize = viewModel.canGenerateSummary && PlanManager.shared.canUseSummarization
-                        Image(systemName: canSummarize ? "wand.and.stars" : "doc.badge.plus")
-                        Text(canSummarize ? "AI議事録を生成" : "議事録を保存")
+                        Image(systemName: viewModel.canGenerateSummary ? "wand.and.stars" : "doc.badge.plus")
+                        Text(viewModel.canGenerateSummary ? "AI議事録を生成" : "議事録を保存")
                     }
                     .frame(maxWidth: .infinity)
                     .padding()

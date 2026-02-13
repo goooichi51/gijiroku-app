@@ -10,7 +10,8 @@
 |----------|------|
 | アプリ | **Swift / SwiftUI**（iOS 16+ / watchOS 10+） |
 | 文字起こし | **WhisperKit**（ローカル、CoreML + Apple Neural Engine） |
-| 話者識別 | **SpeakerKit**（ローカル、Argmax社） |
+| 話者識別 | **SpeakerKit**（ローカル、Argmax社）※MVP後対応 |
+| 課金 | **StoreKit 2**（自動更新サブスクリプション） |
 | AI要約 | **Gemini 3 Flash API**（Google） |
 | バックエンド | **Supabase**（認証・データ同期・APIキー保護） |
 | Watch連携 | **WCSession (transferFile)** |
@@ -81,9 +82,18 @@ gijoroku_app_v2/
 | Free | 月5回・1回30分、AI要約なし、簡易メモのみ |
 | Standard ¥480/月 | 無制限、AI要約、全テンプレート、PDF、話者識別 |
 
+## Supabase
+
+- **プロジェクト**: gijiroku-app
+- **リージョン**: ap-northeast-1（東京）
+- **URL**: `https://mbhcyaocfngegssvtdgl.supabase.co`
+- **Edge Function**: `summarize`（Gemini 3 Flash API呼び出し）
+- **テーブル**: `profiles`, `meetings`（RLS有効）
+
 ## ドキュメント参照
 
 設計判断に迷ったときは docs/ 配下のドキュメントを参照:
 - 機能仕様・優先度 → `docs/requirements.md`
 - 画面レイアウト・フロー → `docs/ui-wireframe-spec.md`
 - 技術的な懸念事項 → `docs/poc-plan.md`（特にSpeakerKit Proのコスト問題）
+- App Store申請 → `docs/appstore-metadata.md`

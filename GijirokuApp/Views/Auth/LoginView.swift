@@ -111,7 +111,7 @@ struct LoginView: View {
                     }
                 }
 
-                // スキップ（開発用）
+                // ログインなしで利用
                 Button {
                     authService.skipAuth()
                 } label: {

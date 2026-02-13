@@ -67,13 +67,12 @@ class PlanManager: ObservableObject {
 
     private func loadUsageData() {
         let defaults = UserDefaults.standard
-        let savedMonth = defaults.integer(forKey: "\(usageKey)_month")
-        let currentMonth = Calendar.current.component(.month, from: Date())
+        let savedYearMonth = defaults.string(forKey: "\(usageKey)_yearMonth") ?? ""
+        let currentYearMonth = Self.currentYearMonth()
 
-        if savedMonth == currentMonth {
+        if savedYearMonth == currentYearMonth {
             meetingsThisMonth = defaults.integer(forKey: "\(usageKey)_count")
         } else {
-            // 月が変わったらリセット
             meetingsThisMonth = 0
             saveUsageData()
         }
@@ -81,9 +80,16 @@ class PlanManager: ObservableObject {
 
     private func saveUsageData() {
         let defaults = UserDefaults.standard
-        let currentMonth = Calendar.current.component(.month, from: Date())
-        defaults.set(currentMonth, forKey: "\(usageKey)_month")
+        defaults.set(Self.currentYearMonth(), forKey: "\(usageKey)_yearMonth")
         defaults.set(meetingsThisMonth, forKey: "\(usageKey)_count")
+    }
+
+    private static func currentYearMonth() -> String {
+        let cal = Calendar.current
+        let now = Date()
+        let year = cal.component(.year, from: now)
+        let month = cal.component(.month, from: now)
+        return "\(year)-\(month)"
     }
 
     func upgradeToPlan(_ plan: SubscriptionPlan) {

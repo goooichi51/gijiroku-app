@@ -89,6 +89,7 @@ class LiveTranscriptionManager: ObservableObject {
     }
 
     func stop() {
+        isActive = false
         transcriptionTask?.cancel()
         transcriptionTask = nil
 
@@ -96,11 +97,11 @@ class LiveTranscriptionManager: ObservableObject {
         audioEngine?.stop()
         audioEngine = nil
 
-        Task {
-            await analyzer?.cancelAndFinishNow()
-        }
+        let analyzerToStop = analyzer
         analyzer = nil
         transcriber = nil
-        isActive = false
+        if let analyzerToStop {
+            Task { await analyzerToStop.cancelAndFinishNow() }
+        }
     }
 }

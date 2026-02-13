@@ -6,8 +6,8 @@ struct MeetingListItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Image(systemName: "doc.text")
-                    .foregroundColor(.blue)
+                Image(systemName: meeting.template.icon)
+                    .foregroundColor(templateColor)
                 Text(meeting.title.isEmpty ? "無題の議事録" : meeting.title)
                     .font(.headline)
                     .lineLimit(1)
@@ -25,6 +25,17 @@ struct MeetingListItemView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
+
+                if !meeting.participants.isEmpty {
+                    Text("・")
+                        .foregroundColor(.secondary)
+                    Image(systemName: "person.2")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(meeting.participants.count)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
             }
 
             HStack {
@@ -32,7 +43,8 @@ struct MeetingListItemView: View {
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
+                    .background(templateColor.opacity(0.1))
+                    .foregroundColor(templateColor)
                     .cornerRadius(4)
 
                 Spacer()
@@ -41,6 +53,15 @@ struct MeetingListItemView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var templateColor: Color {
+        switch meeting.template {
+        case .standard: return .blue
+        case .simple: return .gray
+        case .sales: return .orange
+        case .brainstorm: return .purple
+        }
     }
 }
 

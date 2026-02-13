@@ -82,9 +82,51 @@ struct SearchView: View {
                     MeetingDetailView(meeting: meeting)
                         .environmentObject(meetingStore)
                 } label: {
-                    MeetingListItemView(meeting: meeting)
+                    VStack(alignment: .leading, spacing: 4) {
+                        MeetingListItemView(meeting: meeting)
+                        if let snippet = searchSnippet(for: meeting) {
+                            Text(snippet)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private func searchSnippet(for meeting: Meeting) -> String? {
+        let query = viewModel.query.lowercased()
+        guard !query.isEmpty else { return nil }
+
+        // タイトルにマッチした場合はスニペット不要
+        if meeting.title.lowercased().contains(query) { return nil }
+
+        // 文字起こしテキストからマッチ箇所を抽出
+        if let text = meeting.transcriptionText,
+           let range = text.lowercased().range(of: query) {
+            let matchIndex = text.distance(from: text.startIndex, to: range.lowerBound)
+            let snippetStart = text.index(text.startIndex, offsetBy: max(0, matchIndex - 20))
+            let snippetEnd = text.index(text.startIndex, offsetBy: min(text.count, matchIndex + query.count + 40))
+            let snippet = String(text[snippetStart..<snippetEnd])
+            let prefix = matchIndex > 20 ? "..." : ""
+            let suffix = text.distance(from: text.startIndex, to: snippetEnd) < text.count ? "..." : ""
+            return "\(prefix)\(snippet)\(suffix)"
+        }
+
+        // 要約テキストからマッチ箇所を抽出
+        if let rawText = meeting.summary?.rawText,
+           let range = rawText.lowercased().range(of: query) {
+            let matchIndex = rawText.distance(from: rawText.startIndex, to: range.lowerBound)
+            let snippetStart = rawText.index(rawText.startIndex, offsetBy: max(0, matchIndex - 20))
+            let snippetEnd = rawText.index(rawText.startIndex, offsetBy: min(rawText.count, matchIndex + query.count + 40))
+            let snippet = String(rawText[snippetStart..<snippetEnd])
+            let prefix = matchIndex > 20 ? "..." : ""
+            let suffix = rawText.distance(from: rawText.startIndex, to: snippetEnd) < rawText.count ? "..." : ""
+            return "\(prefix)\(snippet)\(suffix)"
+        }
+
+        return nil
     }
 }

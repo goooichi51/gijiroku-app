@@ -6,6 +6,7 @@ struct HomeView: View {
     @ObservedObject private var planManager = PlanManager.shared
     @State private var showUpgradeAlert = false
     @State private var meetingToDelete: Meeting?
+    @State private var isSyncing = false
 
     var body: some View {
         NavigationStack {
@@ -18,6 +19,23 @@ struct HomeView: View {
             }
             .navigationTitle("議事録")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        Task {
+                            isSyncing = true
+                            await meetingStore.syncWithCloud()
+                            isSyncing = false
+                        }
+                    } label: {
+                        if isSyncing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(isSyncing)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
                         SettingsView()
@@ -25,6 +43,9 @@ struct HomeView: View {
                         Image(systemName: "gearshape")
                     }
                 }
+            }
+            .refreshable {
+                await meetingStore.syncWithCloud()
             }
             .fullScreenCover(isPresented: $viewModel.showRecording) {
                 RecordingView { url, duration in

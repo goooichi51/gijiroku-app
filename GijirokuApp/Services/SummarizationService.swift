@@ -6,6 +6,8 @@ class SummarizationService: ObservableObject {
     @Published var isSummarizing = false
     @Published var errorMessage: String?
 
+    private let maxRetries = 2
+
     func summarize(
         transcription: String,
         template: MeetingTemplate,
@@ -29,14 +31,25 @@ class SummarizationService: ObservableObject {
             transcription: transcription
         )
 
-        let response: SummarizeResponse = try await SupabaseManager.shared.client
-            .functions
-            .invoke(
-                "summarize",
-                options: .init(body: requestBody)
-            )
+        var lastError: Error?
+        for attempt in 0...maxRetries {
+            do {
+                let response: SummarizeResponse = try await SupabaseManager.shared.client
+                    .functions
+                    .invoke(
+                        "summarize",
+                        options: .init(body: requestBody)
+                    )
+                return parseSummary(response.summary, template: template)
+            } catch {
+                lastError = error
+                if attempt < maxRetries {
+                    try await Task.sleep(for: .seconds(Double(attempt + 1) * 2))
+                }
+            }
+        }
 
-        return parseSummary(response.summary, template: template)
+        throw lastError ?? SummarizationError.networkError("AI要約の生成に失敗しました。しばらくしてからお試しください。")
     }
 
     private func parseSummary(_ jsonString: String, template: MeetingTemplate) -> MeetingSummary {

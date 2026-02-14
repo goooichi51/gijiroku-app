@@ -66,6 +66,9 @@ struct SearchView: View {
                 .foregroundColor(.secondary)
             Text("該当する議事録が見つかりません")
                 .foregroundColor(.secondary)
+            Text("タイトル、参加者名、場所、本文から検索できます")
+                .font(.caption)
+                .foregroundColor(.secondary.opacity(0.7))
             Spacer()
         }
     }

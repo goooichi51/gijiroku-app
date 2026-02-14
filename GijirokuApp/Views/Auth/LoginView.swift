@@ -16,6 +16,7 @@ struct LoginView: View {
                     Image(systemName: "mic.circle.fill")
                         .font(.system(size: 70))
                         .foregroundColor(.blue)
+                        .accessibilityHidden(true)
                     Text("議事録アプリ")
                         .font(.title)
                         .bold()
@@ -35,6 +36,7 @@ struct LoginView: View {
                 .frame(height: 50)
                 .cornerRadius(12)
                 .padding(.horizontal, 30)
+                .accessibilityLabel("Apple IDでサインイン")
 
                 // 区切り線
                 HStack {
@@ -49,27 +51,59 @@ struct LoginView: View {
                         .foregroundColor(Color(.systemGray4))
                 }
                 .padding(.horizontal, 30)
+                .accessibilityHidden(true)
 
                 // メールフォーム
                 VStack(spacing: 16) {
-                    TextField("メールアドレス", text: $viewModel.email)
-                        .textFieldStyle(.roundedBorder)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .autocapitalization(.none)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("メールアドレス", text: $viewModel.email)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .autocapitalization(.none)
 
-                    SecureField("パスワード（6文字以上）", text: $viewModel.password)
-                        .textFieldStyle(.roundedBorder)
-                        .textContentType(viewModel.isSignUp ? .newPassword : .password)
+                        if !viewModel.email.isEmpty && !viewModel.isEmailValid {
+                            Text("有効なメールアドレスを入力してください")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        SecureField("パスワード（6文字以上）", text: $viewModel.password)
+                            .textFieldStyle(.roundedBorder)
+                            .textContentType(viewModel.isSignUp ? .newPassword : .password)
+
+                        if viewModel.isSignUp && !viewModel.password.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: viewModel.password.count >= 6 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(viewModel.password.count >= 6 ? .green : .red)
+                                    .font(.caption2)
+                                Text("6文字以上")
+                                    .font(.caption2)
+                                    .foregroundColor(viewModel.password.count >= 6 ? .green : .red)
+                            }
+                        }
+                    }
                 }
                 .padding(.horizontal, 30)
 
                 // エラー
                 if let error = authService.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.horizontal)
+                    HStack {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                        Button {
+                            authService.errorMessage = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.red.opacity(0.6))
+                        }
+                        .accessibilityLabel("エラーを閉じる")
+                    }
+                    .padding(.horizontal)
                 }
 
                 // ログイン/登録ボタン

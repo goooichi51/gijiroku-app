@@ -48,6 +48,13 @@ struct Meeting: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
     }
 
+    var searchableText: String {
+        [title, location, participants.joined(separator: " "), transcriptionText, summary?.rawText]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")

@@ -7,7 +7,12 @@ class AuthViewModel: ObservableObject {
     @Published var isSignUp = false
     @Published var isLoading = false
 
+    var isEmailValid: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        return trimmed.contains("@") && trimmed.contains(".") && trimmed.count >= 5
+    }
+
     var isFormValid: Bool {
-        !email.trimmingCharacters(in: .whitespaces).isEmpty && password.count >= 6
+        isEmailValid && password.count >= 6
     }
 }

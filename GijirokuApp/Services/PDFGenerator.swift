@@ -201,7 +201,7 @@ class PDFGenerator {
     }
 
     private func drawFooter(pageNumber: Int, in context: UIGraphicsPDFRendererContext) {
-        drawSeparator(at: pageHeight - margin - 15, in: context)
+        _ = drawSeparator(at: pageHeight - margin - 15, in: context)
         let attrs: [NSAttributedString.Key: Any] = [.font: captionFont, .foregroundColor: UIColor.gray]
         let footer = "議事録アプリ で自動生成  \(pageNumber)"
         let size = footer.size(withAttributes: attrs)

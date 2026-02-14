@@ -5,11 +5,30 @@ struct PDFPreviewView: View {
     let meeting: Meeting
     @State private var pdfData: Data?
     @State private var showShareSheet = false
+    @State private var generationError: String?
 
     var body: some View {
         VStack {
             if let data = pdfData {
                 PDFKitView(data: data)
+            } else if let error = generationError {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text("PDF生成に失敗しました")
+                        .font(.headline)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("再試行") {
+                        generationError = nil
+                        generatePDF()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
             } else {
                 ProgressView("PDF生成中...")
             }
@@ -24,6 +43,7 @@ struct PDFPreviewView: View {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .disabled(pdfData == nil)
+                .accessibilityLabel("PDFを共有")
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -35,7 +55,16 @@ struct PDFPreviewView: View {
             }
         }
         .task {
-            pdfData = PDFGenerator().generatePDF(from: meeting)
+            generatePDF()
+        }
+    }
+
+    private func generatePDF() {
+        let data = PDFGenerator().generatePDF(from: meeting)
+        if data.isEmpty {
+            generationError = "議事録データが不足しているか、PDF生成中にエラーが発生しました。"
+        } else {
+            pdfData = data
         }
     }
 }
@@ -50,7 +79,5 @@ struct PDFKitView: UIViewRepresentable {
         return pdfView
     }
 
-    func updateUIView(_ uiView: PDFView, context: Context) {
-        uiView.document = PDFDocument(data: data)
-    }
+    func updateUIView(_ uiView: PDFView, context: Context) {}
 }

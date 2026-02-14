@@ -29,7 +29,17 @@ class SearchViewModel: ObservableObject {
 
     func performSearch(query: String) {
         guard let store = meetingStore else { return }
-        results = store.search(query: query)
+        let searchResults = store.search(query: query)
+        // タイトルマッチを優先、同順位は新しい日付順
+        let lowercased = query.lowercased()
+        results = searchResults.sorted { lhs, rhs in
+            let lhsTitleMatch = lhs.title.lowercased().contains(lowercased)
+            let rhsTitleMatch = rhs.title.lowercased().contains(lowercased)
+            if lhsTitleMatch != rhsTitleMatch {
+                return lhsTitleMatch
+            }
+            return lhs.date > rhs.date
+        }
     }
 
     func addToRecentSearches(_ query: String) {

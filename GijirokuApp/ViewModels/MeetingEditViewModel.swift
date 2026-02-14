@@ -10,6 +10,17 @@ class MeetingEditViewModel: ObservableObject {
 
     private let meetingId: UUID
     private var meetingStore: MeetingStore?
+    private var originalTitle: String
+    private var originalLocation: String
+    private var originalParticipants: [String]
+    private var originalSummaryRawText: String
+
+    var hasUnsavedChanges: Bool {
+        title != originalTitle ||
+        location != originalLocation ||
+        participants != originalParticipants ||
+        summaryRawText != originalSummaryRawText
+    }
 
     init(meeting: Meeting) {
         self.meetingId = meeting.id
@@ -18,6 +29,10 @@ class MeetingEditViewModel: ObservableObject {
         self.location = meeting.location
         self.participants = meeting.participants
         self.summaryRawText = meeting.summary?.rawText ?? meeting.transcriptionText ?? ""
+        self.originalTitle = meeting.title
+        self.originalLocation = meeting.location
+        self.originalParticipants = meeting.participants
+        self.originalSummaryRawText = meeting.summary?.rawText ?? meeting.transcriptionText ?? ""
     }
 
     func setStore(_ store: MeetingStore) {

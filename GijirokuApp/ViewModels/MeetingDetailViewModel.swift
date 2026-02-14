@@ -6,6 +6,7 @@ class MeetingDetailViewModel: ObservableObject {
     @Published var selectedTab: DetailTab = .summary
     @Published var isSummarizing = false
     @Published var summarizationError: String?
+    @Published var summarizationRecoverySuggestion: String?
 
     private let summarizationService = SummarizationService()
 
@@ -52,6 +53,9 @@ class MeetingDetailViewModel: ObservableObject {
             meeting.status = .completed
         } catch {
             summarizationError = error.localizedDescription
+            if let summError = error as? SummarizationError {
+                summarizationRecoverySuggestion = summError.recoverySuggestion
+            }
         }
 
         isSummarizing = false

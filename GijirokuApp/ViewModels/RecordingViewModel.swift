@@ -3,14 +3,22 @@ import UserNotifications
 
 @MainActor
 class RecordingViewModel: ObservableObject {
-    @Published var isRecording = false
-    @Published var isPaused = false
+    enum RecordingState: Equatable {
+        case idle
+        case recording
+        case paused
+    }
+
+    @Published var state: RecordingState = .idle
     @Published var recordingTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
     @Published var showTimeWarning = false
     @Published var showDiscardAlert = false
     @Published var errorMessage: String?
     @Published var showLiveTranscription = false
+
+    var isRecording: Bool { state != .idle }
+    var isPaused: Bool { state == .paused }
 
     let recorderService = AudioRecorderService()
     let liveTranscription = LiveTranscriptionManager()
@@ -89,8 +97,7 @@ class RecordingViewModel: ObservableObject {
 
         do {
             recordingURL = try recorderService.startRecording()
-            isRecording = true
-            isPaused = false
+            state = .recording
 
             startObserving()
 
@@ -112,7 +119,7 @@ class RecordingViewModel: ObservableObject {
         } else {
             recorderService.pauseRecording()
         }
-        isPaused = recorderService.isPaused
+        state = recorderService.isPaused ? .paused : .recording
     }
 
     func stopRecording() {
@@ -121,8 +128,7 @@ class RecordingViewModel: ObservableObject {
 
         guard let url = recorderService.stopRecording() else { return }
 
-        isRecording = false
-        isPaused = false
+        state = .idle
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
         PlanManager.shared.recordMeetingUsage()
         onRecordingComplete?(url, duration)
@@ -135,8 +141,7 @@ class RecordingViewModel: ObservableObject {
     func confirmDiscard() {
         liveTranscription.stop()
         recorderService.cancelRecording()
-        isRecording = false
-        isPaused = false
+        state = .idle
         recordingURL = nil
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
     }

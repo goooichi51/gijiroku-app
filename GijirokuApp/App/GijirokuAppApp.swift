@@ -14,7 +14,7 @@ struct GijirokuAppApp: App {
                         hasCompletedOnboarding = true
                     }
                 } else if authService.isLoading {
-                    ProgressView("読み込み中...")
+                    loadingView
                 } else if !authService.isAuthenticated {
                     LoginView()
                         .environmentObject(authService)
@@ -27,6 +27,19 @@ struct GijirokuAppApp: App {
             .task {
                 await authService.restoreSession()
             }
+        }
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "waveform.circle.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.purple.opacity(0.6))
+            ProgressView()
+                .controlSize(.large)
+            Text("読み込み中...")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
     }
 }

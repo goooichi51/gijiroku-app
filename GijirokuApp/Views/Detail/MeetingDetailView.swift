@@ -67,10 +67,25 @@ struct MeetingDetailView: View {
             }
 
             if let error = viewModel.summarizationError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.horizontal)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text(error)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    if let suggestion = viewModel.summarizationRecoverySuggestion {
+                        Text(suggestion)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
 
             // 下部ボタン
@@ -156,6 +171,7 @@ struct MeetingDetailView: View {
                     .font(.system(size: 36))
                     .foregroundColor(.accentColor)
             }
+            .accessibilityLabel(audioPlayer.isPlaying ? "音声を一時停止" : "音声を再生")
 
             if audioPlayer.duration > 0 {
                 VStack(spacing: 4) {
@@ -176,6 +192,8 @@ struct MeetingDetailView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .monospacedDigit()
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(audioPlayer.formattedCurrentTime) / \(audioPlayer.formattedDuration)")
                 }
             } else {
                 Text("音声を再生")

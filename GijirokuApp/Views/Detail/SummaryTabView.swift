@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SummaryTabView: View {
     let meeting: Meeting
+    @State private var showCopiedToast = false
 
     var body: some View {
         ScrollView {
@@ -27,6 +28,42 @@ struct SummaryTabView: View {
             }
             .padding()
         }
+        .overlay(alignment: .bottom) {
+            if showCopiedToast {
+                Text("コピーしました")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20)
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            withAnimation { showCopiedToast = false }
+                        }
+                    }
+            }
+        }
+        .toolbar {
+            if meeting.summary != nil {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        copySummary()
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .accessibilityLabel("要約をコピー")
+                }
+            }
+        }
+    }
+
+    private func copySummary() {
+        guard let summary = meeting.summary else { return }
+        UIPasteboard.general.string = summary.rawText
+        withAnimation { showCopiedToast = true }
     }
 
     private var metadataSection: some View {

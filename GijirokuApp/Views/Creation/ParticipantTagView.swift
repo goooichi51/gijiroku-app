@@ -13,17 +13,22 @@ struct ParticipantTagView: View {
                         Text(name)
                             .font(.subheadline)
                         Button {
-                            participants.removeAll { $0 == name }
+                            withAnimation {
+                                participants.removeAll { $0 == name }
+                            }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        .accessibilityLabel("\(name)を削除")
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(Color(.systemGray5))
                     .cornerRadius(16)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("参加者: \(name)")
                 }
             }
 
@@ -40,14 +45,23 @@ struct ParticipantTagView: View {
                         .foregroundColor(.blue)
                 }
                 .disabled(newParticipant.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityLabel("参加者を追加")
             }
         }
     }
 
     private func addParticipant() {
         let name = newParticipant.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty, !participants.contains(name) else { return }
-        participants.append(name)
+        guard !name.isEmpty else { return }
+        let isDuplicate = participants.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+        guard !isDuplicate else {
+            newParticipant = ""
+            return
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation {
+            participants.append(name)
+        }
         newParticipant = ""
     }
 }

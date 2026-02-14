@@ -5,6 +5,23 @@ struct SettingsView: View {
     @EnvironmentObject var meetingStore: MeetingStore
     @ObservedObject private var planManager = PlanManager.shared
     @State private var isSyncing = false
+    @State private var showDeleteRecordingsAlert = false
+    @State private var showLogoutAlert = false
+
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
+    }
+
+    private var storageSize: String {
+        let recordings = AudioFileManager.shared.allRecordings()
+        let totalBytes = recordings.compactMap { AudioFileManager.shared.fileSize(at: $0) }.reduce(0, +)
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useMB, .useKB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: totalBytes)
+    }
 
     var body: some View {
         List {
@@ -74,6 +91,25 @@ struct SettingsView: View {
                 .disabled(isSyncing)
             }
 
+            Section("ストレージ") {
+                HStack {
+                    Image(systemName: "waveform")
+                    Text("録音ファイル")
+                    Spacer()
+                    Text(storageSize)
+                        .foregroundColor(.secondary)
+                }
+
+                Button(role: .destructive) {
+                    showDeleteRecordingsAlert = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("古い録音ファイルを削除")
+                    }
+                }
+            }
+
             Section("その他") {
                 NavigationLink("プライバシーポリシー") {
                     PrivacyPolicyView()
@@ -84,19 +120,35 @@ struct SettingsView: View {
                 HStack {
                     Text("バージョン")
                     Spacer()
-                    Text("1.0.0")
+                    Text(appVersion)
                         .foregroundColor(.secondary)
                 }
             }
 
             Section {
                 Button("ログアウト", role: .destructive) {
-                    Task { await authService.signOut() }
+                    showLogoutAlert = true
                 }
             }
         }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("ログアウトしますか？", isPresented: $showLogoutAlert) {
+            Button("ログアウト", role: .destructive) {
+                Task { await authService.signOut() }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("ローカルに保存されたデータは残りますが、クラウド同期には再ログインが必要です。")
+        }
+        .alert("録音ファイルを削除しますか？", isPresented: $showDeleteRecordingsAlert) {
+            Button("削除", role: .destructive) {
+                AudioFileManager.shared.deleteAllRecordings()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("参照されていない録音ファイルを削除します。議事録のデータは残ります。")
+        }
     }
 }
 

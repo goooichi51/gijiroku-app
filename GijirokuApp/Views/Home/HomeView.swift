@@ -35,6 +35,7 @@ struct HomeView: View {
                         }
                     }
                     .disabled(isSyncing)
+                    .accessibilityLabel(isSyncing ? "同期中" : "クラウドと同期")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
@@ -42,6 +43,7 @@ struct HomeView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("設定")
                 }
             }
             .refreshable {
@@ -173,5 +175,7 @@ struct HomeView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Freeプラン、今月の残り録音回数 \(planManager.remainingFreeRecordings)回")
     }
 }

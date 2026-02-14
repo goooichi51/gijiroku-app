@@ -18,5 +18,7 @@ struct RecordButton: View {
                     .foregroundColor(.white)
             }
         }
+        .accessibilityLabel("録音を開始")
+        .accessibilityHint("タップして会議の録音を開始します")
     }
 }

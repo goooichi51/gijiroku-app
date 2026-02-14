@@ -4,6 +4,7 @@ struct MeetingEditView: View {
     @EnvironmentObject var meetingStore: MeetingStore
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: MeetingEditViewModel
+    @State private var showDiscardAlert = false
 
     init(meeting: Meeting) {
         _viewModel = StateObject(wrappedValue: MeetingEditViewModel(meeting: meeting))
@@ -67,6 +68,15 @@ struct MeetingEditView: View {
         .navigationTitle("編集")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("キャンセル") {
+                    if viewModel.hasUnsavedChanges {
+                        showDiscardAlert = true
+                    } else {
+                        dismiss()
+                    }
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("保存") {
                     viewModel.save()
@@ -75,8 +85,17 @@ struct MeetingEditView: View {
                 .fontWeight(.bold)
             }
         }
+        .alert("変更を破棄しますか？", isPresented: $showDiscardAlert) {
+            Button("破棄", role: .destructive) {
+                dismiss()
+            }
+            Button("編集を続ける", role: .cancel) {}
+        } message: {
+            Text("保存されていない変更があります。")
+        }
         .onAppear {
             viewModel.setStore(meetingStore)
         }
+        .interactiveDismissDisabled(viewModel.hasUnsavedChanges)
     }
 }

@@ -19,9 +19,14 @@ struct TemplateSelectionView: View {
                             isLocked: !isAvailable
                         ) {
                             if isAvailable {
-                                selected = template
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    selected = template
+                                }
                             }
                         }
+                        .accessibilityLabel("\(template.displayName)テンプレート")
+                        .accessibilityHint(isAvailable ? "タップして選択" : "Standardプランで利用可能")
                     }
                 }
             }

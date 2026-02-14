@@ -13,6 +13,7 @@ struct RecordingView: View {
                 Text(viewModel.formattedTime)
                     .font(.system(size: 48, weight: .light, design: .monospaced))
                     .padding(.top, 40)
+                    .accessibilityLabel("録音時間 \(viewModel.formattedTime)")
 
                 if viewModel.isPaused {
                     Text("一時停止中")
@@ -26,6 +27,7 @@ struct RecordingView: View {
                     .frame(height: 80)
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
+                    .accessibilityHidden(true)
 
                 // リアルタイム文字起こしプレビュー
                 if viewModel.showLiveTranscription {
@@ -63,6 +65,7 @@ struct RecordingView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .accessibilityLabel(viewModel.isPaused ? "録音を再開" : "録音を一時停止")
 
                     Button {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -77,6 +80,7 @@ struct RecordingView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .accessibilityLabel("録音を停止して保存")
                 }
                 .padding(.bottom, 40)
             }

@@ -8,6 +8,7 @@ struct MeetingListItemView: View {
             HStack {
                 Image(systemName: meeting.template.icon)
                     .foregroundColor(templateColor)
+                    .accessibilityHidden(true)
                 Text(meeting.title.isEmpty ? "無題の議事録" : meeting.title)
                     .font(.headline)
                     .lineLimit(1)
@@ -21,6 +22,7 @@ struct MeetingListItemView: View {
                 if let duration = meeting.audioDuration, duration > 0 {
                     Text("・")
                         .foregroundColor(.secondary)
+                        .accessibilityHidden(true)
                     Text(meeting.formattedDuration)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -29,9 +31,11 @@ struct MeetingListItemView: View {
                 if !meeting.participants.isEmpty {
                     Text("・")
                         .foregroundColor(.secondary)
+                        .accessibilityHidden(true)
                     Image(systemName: "person.2")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .accessibilityHidden(true)
                     Text("\(meeting.participants.count)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -53,6 +57,22 @@ struct MeetingListItemView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var parts = [meeting.title.isEmpty ? "無題の議事録" : meeting.title]
+        parts.append(meeting.formattedDate)
+        if let duration = meeting.audioDuration, duration > 0 {
+            parts.append(meeting.formattedDuration)
+        }
+        if !meeting.participants.isEmpty {
+            parts.append("参加者\(meeting.participants.count)人")
+        }
+        parts.append(meeting.template.displayName)
+        parts.append(meeting.status.displayName)
+        return parts.joined(separator: "、")
     }
 
     private var templateColor: Color {
@@ -77,6 +97,8 @@ struct StatusBadge: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("ステータス: \(status.displayName)")
     }
 
     private var statusColor: Color {

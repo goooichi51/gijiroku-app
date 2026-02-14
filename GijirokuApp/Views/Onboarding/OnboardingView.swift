@@ -29,20 +29,33 @@ struct OnboardingView: View {
     ]
 
     var body: some View {
-        TabView(selection: $currentPage) {
-            ForEach(0..<pages.count, id: \.self) { index in
-                OnboardingPageView(page: pages[index]) {
-                    if index == pages.count - 1 {
-                        onComplete()
-                    } else {
-                        withAnimation { currentPage = index + 1 }
+        ZStack(alignment: .topTrailing) {
+            TabView(selection: $currentPage) {
+                ForEach(0..<pages.count, id: \.self) { index in
+                    OnboardingPageView(page: pages[index]) {
+                        if index == pages.count - 1 {
+                            onComplete()
+                        } else {
+                            withAnimation { currentPage = index + 1 }
+                        }
                     }
+                    .tag(index)
                 }
-                .tag(index)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+            if currentPage < pages.count - 1 {
+                Button("スキップ") {
+                    onComplete()
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.trailing, 20)
+                .padding(.top, 16)
+                .accessibilityLabel("オンボーディングをスキップ")
             }
         }
-        .tabViewStyle(.page(indexDisplayMode: .always))
-        .indexViewStyle(.page(backgroundDisplayMode: .always))
     }
 }
 
@@ -65,6 +78,7 @@ struct OnboardingPageView: View {
             Image(systemName: page.icon)
                 .font(.system(size: 80))
                 .foregroundColor(page.iconColor)
+                .accessibilityHidden(true)
 
             VStack(spacing: 12) {
                 Text(page.title)
@@ -76,6 +90,7 @@ struct OnboardingPageView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
+            .accessibilityElement(children: .combine)
 
             Spacer()
 

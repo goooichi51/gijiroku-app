@@ -18,7 +18,7 @@ class SummarizationService: ObservableObject {
         defer { isSummarizing = false }
 
         guard NetworkMonitor.shared.isConnected else {
-            throw SummarizationError.networkError("インターネット接続がありません。Wi-Fiまたはモバイルデータを確認してください。")
+            throw SummarizationError.offline
         }
 
         let prompt = PromptTemplates.buildPrompt(
@@ -49,7 +49,7 @@ class SummarizationService: ObservableObject {
             }
         }
 
-        throw lastError ?? SummarizationError.networkError("AI要約の生成に失敗しました。しばらくしてからお試しください。")
+        throw lastError ?? SummarizationError.serverError
     }
 
     private func parseSummary(_ jsonString: String, template: MeetingTemplate) -> MeetingSummary {
@@ -126,18 +126,39 @@ struct SummarizeResponse: Decodable {
 // MARK: - Errors
 
 enum SummarizationError: LocalizedError {
-    case networkError(String)
+    case offline
+    case serverError
     case parseError
     case notAuthenticated
+    case networkError(String)
 
     var errorDescription: String? {
         switch self {
-        case .networkError(let detail):
-            return "AI要約の生成に失敗しました: \(detail)"
+        case .offline:
+            return "インターネットに接続されていません"
+        case .serverError:
+            return "サーバーとの通信に失敗しました"
         case .parseError:
-            return "AI要約の結果を解析できませんでした。"
+            return "AI要約の結果を解析できませんでした"
         case .notAuthenticated:
-            return "ログインが必要です。"
+            return "ログインが必要です"
+        case .networkError(let detail):
+            return detail
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .offline:
+            return "Wi-Fiまたはモバイルデータ通信を確認してください。"
+        case .serverError:
+            return "しばらくしてからもう一度お試しください。"
+        case .parseError:
+            return "再度AI要約を実行してください。問題が続く場合はテンプレートを変更してお試しください。"
+        case .notAuthenticated:
+            return "設定画面からログインしてください。"
+        case .networkError:
+            return "しばらくしてからもう一度お試しください。"
         }
     }
 }

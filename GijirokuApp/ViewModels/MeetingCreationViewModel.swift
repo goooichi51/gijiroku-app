@@ -17,6 +17,7 @@ class MeetingCreationViewModel: ObservableObject {
     let audioFileURL: URL
     let audioDuration: TimeInterval
     private let transcriptionService = TranscriptionService()
+    private var transcriptionTask: Task<Void, Never>?
 
     var canGenerateSummary: Bool {
         transcriptionText != nil && !isTranscribing && PlanManager.shared.canUseSummarization
@@ -31,33 +32,41 @@ class MeetingCreationViewModel: ObservableObject {
         self.audioDuration = audioDuration
     }
 
+    deinit {
+        transcriptionTask?.cancel()
+    }
+
     func startTranscription() async {
+        guard !isTranscribing else { return }
+
         isTranscribing = true
         transcriptionProgress = 0
         errorMessage = nil
 
-        do {
-            try await transcriptionService.initialize()
+        transcriptionTask = Task {
+            do {
+                try await transcriptionService.initialize()
 
-            // 進捗を監視
-            let progressTask = Task {
-                while !Task.isCancelled {
-                    transcriptionProgress = transcriptionService.progress
-                    try? await Task.sleep(nanoseconds: 200_000_000)
+                // 進捗を監視
+                let progressTask = Task {
+                    while !Task.isCancelled {
+                        transcriptionProgress = transcriptionService.progress
+                        try? await Task.sleep(nanoseconds: 200_000_000)
+                    }
                 }
+
+                let result = try await transcriptionService.transcribe(audioPath: audioFileURL.path)
+                progressTask.cancel()
+
+                transcriptionText = result.text
+                transcriptionSegments = result.segments
+                transcriptionProgress = 1.0
+            } catch {
+                errorMessage = error.localizedDescription
             }
 
-            let result = try await transcriptionService.transcribe(audioPath: audioFileURL.path)
-            progressTask.cancel()
-
-            transcriptionText = result.text
-            transcriptionSegments = result.segments
-            transcriptionProgress = 1.0
-        } catch {
-            errorMessage = error.localizedDescription
+            isTranscribing = false
         }
-
-        isTranscribing = false
     }
 
     func createMeeting() -> Meeting {

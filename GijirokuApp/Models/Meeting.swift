@@ -73,15 +73,13 @@ struct Meeting: Identifiable, Codable, Equatable {
 
     /// 実際のデータ状態に基づいてステータスを補正する
     var correctedStatus: MeetingStatus {
-        switch status {
-        case .recording:
-            // 保存済み議事録が「録音中」のままなのは不正
-            if summary != nil { return .completed }
-            if transcriptionText != nil { return .readyForSummary }
-            return .transcribing
-        default:
-            return status
-        }
+        // 要約があれば完了
+        if summary != nil { return .completed }
+        // 文字起こしがあれば要約待ち
+        if transcriptionText != nil { return .readyForSummary }
+        // それ以外は文字起こし中
+        if status == .completed { return .completed }
+        return .transcribing
     }
 
     var searchableText: String {

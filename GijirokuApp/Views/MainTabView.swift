@@ -12,30 +12,22 @@ struct MainTabView: View {
     @ObservedObject private var planManager = PlanManager.shared
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tabItem {
-                        Label("ホーム", systemImage: "house")
-                    }
-                    .tag(0)
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tabItem {
+                    Label("ホーム", systemImage: "house")
+                }
+                .tag(0)
 
-                // 中央タブのプレースホルダー（録音ボタンで上書き）
-                Color.clear
-                    .tabItem {
-                        Label("録音", systemImage: "mic")
-                    }
-                    .tag(1)
-
-                SearchView()
-                    .tabItem {
-                        Label("検索", systemImage: "magnifyingglass")
-                    }
-                    .tag(2)
-            }
-
-            // 中央フローティング録音ボタン
+            SearchView()
+                .tabItem {
+                    Label("検索", systemImage: "magnifyingglass")
+                }
+                .tag(1)
+        }
+        .overlay(alignment: .bottom) {
             centerRecordButton
+                .padding(.bottom, 50)
         }
         .fullScreenCover(isPresented: $showRecording) {
             RecordingView { url, duration in
@@ -63,13 +55,6 @@ struct MainTabView: View {
         .task {
             await meetingStore.syncWithCloud()
         }
-        .onChange(of: selectedTab) { _, newValue in
-            if newValue == 1 {
-                // 中央タブがタップされたら録音を開始
-                selectedTab = 0
-                startRecordingIfAllowed()
-            }
-        }
     }
 
     private var centerRecordButton: some View {
@@ -86,7 +71,6 @@ struct MainTabView: View {
                     .foregroundColor(.white)
             }
         }
-        .offset(y: -24)
         .accessibilityLabel("録音を開始")
         .accessibilityHint("タップして会議の録音を開始します")
     }

@@ -94,6 +94,7 @@ class SyncService: ObservableObject {
         }
 
         // ローカルのデータをアップロード
+        var uploadFailCount = 0
         for meeting in store.meetings {
             let record = meetingToRecord(meeting, userId: userId)
             do {
@@ -101,8 +102,12 @@ class SyncService: ObservableObject {
                     .upsert(record)
                     .execute()
             } catch {
+                uploadFailCount += 1
                 AppLogger.sync.error("同期エラー (id: \(meeting.id)): \(error.localizedDescription)")
             }
+        }
+        if uploadFailCount > 0 {
+            syncError = "\(uploadFailCount)件の議事録のアップロードに失敗しました"
         }
 
         // リモートからダウンロードしてマージ

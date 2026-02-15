@@ -15,8 +15,10 @@ class SupabaseManager {
             AppLogger.sync.warning("Supabase URLまたはAnon Keyが未設定です")
         }
 
+        let supabaseURL = URL(string: url.isEmpty ? "https://placeholder.supabase.co" : url)
+            ?? URL(string: "https://placeholder.supabase.co")!
         client = SupabaseClient(
-            supabaseURL: URL(string: url.isEmpty ? "https://placeholder.supabase.co" : url)!,
+            supabaseURL: supabaseURL,
             supabaseKey: key.isEmpty ? "placeholder" : key
         )
     }

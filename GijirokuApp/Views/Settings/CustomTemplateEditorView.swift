@@ -48,7 +48,8 @@ struct CustomTemplateEditorView: View {
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !promptFormat.trimmingCharacters(in: .whitespaces).isEmpty
+        !promptFormat.trimmingCharacters(in: .whitespaces).isEmpty &&
+        Self.availableIcons.contains(icon)
     }
 
     var body: some View {

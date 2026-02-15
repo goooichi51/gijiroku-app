@@ -20,6 +20,7 @@ struct MeetingEditView: View {
                         .foregroundColor(.secondary)
                     TextField("タイトル", text: $viewModel.title)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("議事録タイトル")
                 }
 
                 // 日時
@@ -27,9 +28,10 @@ struct MeetingEditView: View {
                     Text("日時")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    DatePicker("", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("会議日時", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
                         .labelsHidden()
                         .environment(\.locale, Locale(identifier: "ja_JP"))
+                        .accessibilityLabel("会議日時")
                 }
 
                 // 場所
@@ -39,6 +41,7 @@ struct MeetingEditView: View {
                         .foregroundColor(.secondary)
                     TextField("場所", text: $viewModel.location)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("会議場所")
                 }
 
                 // 参加者
@@ -61,6 +64,7 @@ struct MeetingEditView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color(.systemGray4), lineWidth: 1)
                         )
+                        .accessibilityLabel("議事録内容")
                 }
             }
             .padding()

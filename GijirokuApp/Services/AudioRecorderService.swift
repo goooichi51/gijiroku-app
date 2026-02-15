@@ -15,6 +15,11 @@ class AudioRecorderService: NSObject, ObservableObject {
     private var pausedDuration: TimeInterval = 0
     private var pauseStartTime: Date?
 
+    deinit {
+        timer?.invalidate()
+        levelTimer?.invalidate()
+    }
+
     static let maxDuration: TimeInterval = 4 * 60 * 60 // 4時間
 
     /// プランに応じた録音時間上限（未設定時はmaxDuration）

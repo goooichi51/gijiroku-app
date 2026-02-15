@@ -153,6 +153,7 @@ struct LoginView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                .accessibilityLabel("ログインをスキップして利用開始")
 
                 Spacer()
             }

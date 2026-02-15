@@ -19,9 +19,16 @@ class MeetingStore: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             meetings = try decoder.decode([Meeting].self, from: data)
+            // 保存済み議事録のステータスを補正（録音中のまま保存された場合の修正）
+            for i in meetings.indices {
+                let corrected = meetings[i].correctedStatus
+                if corrected != meetings[i].status {
+                    meetings[i].status = corrected
+                }
+            }
             meetings.sort { $0.date > $1.date }
         } catch {
-            print("議事録データの読み込みに失敗しました: \(error.localizedDescription)")
+            AppLogger.store.error("議事録データの読み込みに失敗しました: \(error.localizedDescription)")
         }
     }
 
@@ -32,7 +39,7 @@ class MeetingStore: ObservableObject {
             let data = try encoder.encode(meetings)
             userDefaults.set(data, forKey: storageKey)
         } catch {
-            print("議事録データの保存に失敗しました: \(error.localizedDescription)")
+            AppLogger.store.error("議事録データの保存に失敗しました: \(error.localizedDescription)")
         }
     }
 

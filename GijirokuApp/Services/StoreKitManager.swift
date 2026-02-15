@@ -44,7 +44,7 @@ class StoreKitManager: ObservableObject {
             products = try await Product.products(for: productIDs)
         } catch {
             errorMessage = "商品情報の取得に失敗しました"
-            print("商品取得エラー: \(error.localizedDescription)")
+            AppLogger.storeKit.error("商品取得エラー: \(error.localizedDescription)")
         }
 
         isLoading = false

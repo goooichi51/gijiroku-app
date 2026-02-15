@@ -5,7 +5,7 @@ class AudioFileManager {
 
     private let fileManager = FileManager.default
 
-    private var recordingsDirectory: URL {
+    var recordingsDirectory: URL {
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let recordingsURL = documentsURL.appendingPathComponent("Recordings", isDirectory: true)
         if !fileManager.fileExists(atPath: recordingsURL.path) {

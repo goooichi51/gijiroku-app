@@ -11,7 +11,8 @@ class SummarizationService: ObservableObject {
     func summarize(
         transcription: String,
         template: MeetingTemplate,
-        metadata: MeetingMetadata
+        metadata: MeetingMetadata,
+        customTemplate: CustomTemplate? = nil
     ) async throws -> MeetingSummary {
         isSummarizing = true
         errorMessage = nil
@@ -21,10 +22,18 @@ class SummarizationService: ObservableObject {
             throw SummarizationError.offline
         }
 
-        let prompt = PromptTemplates.buildPrompt(
-            template: template,
-            metadata: metadata
-        )
+        let prompt: String
+        if let custom = customTemplate {
+            prompt = PromptTemplates.buildCustomPrompt(
+                customTemplate: custom,
+                metadata: metadata
+            )
+        } else {
+            prompt = PromptTemplates.buildPrompt(
+                template: template,
+                metadata: metadata
+            )
+        }
 
         let requestBody = SummarizeRequest(
             prompt: prompt,
@@ -40,6 +49,9 @@ class SummarizationService: ObservableObject {
                         "summarize",
                         options: .init(body: requestBody)
                     )
+                if customTemplate != nil {
+                    return MeetingSummary(rawText: response.summary)
+                }
                 return parseSummary(response.summary, template: template)
             } catch {
                 lastError = error
@@ -57,6 +69,9 @@ class SummarizationService: ObservableObject {
 
         guard let data = jsonString.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            // JSON解析失敗時は生テキストを保持しつつエラーをログ
+            AppLogger.summarization.warning("AI要約のJSON解析に失敗しました。生テキストとして保存します。")
+            errorMessage = "AI要約の構造化に失敗しましたが、テキストとして保存しました"
             return summary
         }
 

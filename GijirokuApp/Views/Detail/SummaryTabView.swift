@@ -97,16 +97,27 @@ struct SummaryTabView: View {
 
     @ViewBuilder
     private func summaryContent(_ summary: MeetingSummary) -> some View {
-        // テンプレートに応じた表示
-        switch meeting.template {
-        case .standard:
-            standardSummary(summary)
-        case .simple:
-            simpleSummary(summary)
-        case .sales:
-            salesSummary(summary)
-        case .brainstorm:
-            brainstormSummary(summary)
+        if meeting.isCustomTemplate {
+            customSummary(summary)
+        } else {
+            switch meeting.template {
+            case .standard:
+                standardSummary(summary)
+            case .simple:
+                simpleSummary(summary)
+            case .sales:
+                salesSummary(summary)
+            case .brainstorm:
+                brainstormSummary(summary)
+            }
+        }
+    }
+
+    private func customSummary(_ summary: MeetingSummary) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionView(title: meeting.effectiveTemplateName) {
+                Text(summary.rawText)
+            }
         }
     }
 

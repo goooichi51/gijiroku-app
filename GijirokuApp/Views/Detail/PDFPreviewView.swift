@@ -5,6 +5,7 @@ struct PDFPreviewView: View {
     let meeting: Meeting
     @State private var pdfData: Data?
     @State private var showShareSheet = false
+    @State private var shareURL: URL?
     @State private var generationError: String?
 
     var body: some View {
@@ -38,7 +39,7 @@ struct PDFPreviewView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    showShareSheet = true
+                    preparePDFForSharing()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -47,11 +48,8 @@ struct PDFPreviewView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            if let data = pdfData {
-                let fileName = "\(meeting.title.isEmpty ? "議事録" : meeting.title).pdf"
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-                let _ = try? data.write(to: tempURL)
-                ShareSheet(activityItems: [tempURL])
+            if let url = shareURL {
+                ShareSheet(activityItems: [url])
             }
         }
         .task {
@@ -65,6 +63,19 @@ struct PDFPreviewView: View {
             generationError = "議事録データが不足しているか、PDF生成中にエラーが発生しました。"
         } else {
             pdfData = data
+        }
+    }
+
+    private func preparePDFForSharing() {
+        guard let data = pdfData else { return }
+        let fileName = "\(meeting.title.isEmpty ? "議事録" : meeting.title).pdf"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        do {
+            try data.write(to: tempURL)
+            shareURL = tempURL
+            showShareSheet = true
+        } catch {
+            generationError = "PDFファイルの保存に失敗しました: \(error.localizedDescription)"
         }
     }
 }

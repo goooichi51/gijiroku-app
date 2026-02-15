@@ -23,6 +23,14 @@ struct SettingsView: View {
         return formatter.string(fromByteCount: totalBytes)
     }
 
+    private func openContactEmail() {
+        let subject = "議事録アプリ お問い合わせ (v\(appVersion))"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:support@gijiroku-app.com?subject=\(subject)") {
+            UIApplication.shared.open(url)
+        }
+    }
+
     var body: some View {
         List {
             Section("プラン") {
@@ -65,6 +73,16 @@ struct SettingsView: View {
                 NavigationLink("デフォルトテンプレート") {
                     DefaultTemplateSettingView()
                 }
+                NavigationLink {
+                    CustomTemplateListView()
+                } label: {
+                    HStack {
+                        Text("カスタムテンプレート")
+                        Spacer()
+                        Text("\(CustomTemplateStore.shared.templates.count)")
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
 
             Section("データ") {
@@ -89,6 +107,17 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(isSyncing)
+
+                if let syncError = meetingStore.syncService.syncError {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                        Text(syncError)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
 
             Section("ストレージ") {
@@ -116,6 +145,18 @@ struct SettingsView: View {
                 }
                 NavigationLink("利用規約") {
                     TermsOfServiceView()
+                }
+                Button {
+                    openContactEmail()
+                } label: {
+                    HStack {
+                        Text("お問い合わせ")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 HStack {
                     Text("バージョン")

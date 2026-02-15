@@ -19,7 +19,7 @@ class AudioPlayerService: NSObject, ObservableObject {
             audioPlayer?.prepareToPlay()
             duration = audioPlayer?.duration ?? 0
         } catch {
-            print("音声ファイルの読み込みに失敗: \(error.localizedDescription)")
+            AppLogger.audio.error("音声ファイルの読み込みに失敗: \(error.localizedDescription)")
         }
     }
 

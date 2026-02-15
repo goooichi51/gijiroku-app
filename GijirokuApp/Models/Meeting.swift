@@ -7,6 +7,7 @@ struct Meeting: Identifiable, Codable, Equatable {
     var location: String
     var participants: [String]
     var template: MeetingTemplate
+    var customTemplateId: UUID?
     var status: MeetingStatus
     var audioFilePath: String?
     var audioDuration: TimeInterval?
@@ -23,7 +24,8 @@ struct Meeting: Identifiable, Codable, Equatable {
         location: String = "",
         participants: [String] = [],
         template: MeetingTemplate = .standard,
-        status: MeetingStatus = .recording,
+        customTemplateId: UUID? = nil,
+        status: MeetingStatus = .readyForSummary,
         audioFilePath: String? = nil,
         audioDuration: TimeInterval? = nil,
         transcriptionText: String? = nil,
@@ -38,6 +40,7 @@ struct Meeting: Identifiable, Codable, Equatable {
         self.location = location
         self.participants = participants
         self.template = template
+        self.customTemplateId = customTemplateId
         self.status = status
         self.audioFilePath = audioFilePath
         self.audioDuration = audioDuration
@@ -46,6 +49,39 @@ struct Meeting: Identifiable, Codable, Equatable {
         self.summary = summary
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    var isCustomTemplate: Bool {
+        customTemplateId != nil
+    }
+
+    var effectiveTemplateName: String {
+        if let id = customTemplateId,
+           let custom = CustomTemplateStore.shared.template(for: id) {
+            return custom.name
+        }
+        return template.displayName
+    }
+
+    var effectiveTemplateIcon: String {
+        if let id = customTemplateId,
+           let custom = CustomTemplateStore.shared.template(for: id) {
+            return custom.icon
+        }
+        return template.icon
+    }
+
+    /// 実際のデータ状態に基づいてステータスを補正する
+    var correctedStatus: MeetingStatus {
+        switch status {
+        case .recording:
+            // 保存済み議事録が「録音中」のままなのは不正
+            if summary != nil { return .completed }
+            if transcriptionText != nil { return .readyForSummary }
+            return .transcribing
+        default:
+            return status
+        }
     }
 
     var searchableText: String {

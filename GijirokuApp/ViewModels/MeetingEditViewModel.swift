@@ -7,6 +7,8 @@ class MeetingEditViewModel: ObservableObject {
     @Published var location: String
     @Published var participants: [String]
     @Published var summaryRawText: String
+    @Published var saveError: String?
+    @Published var isSaved = false
 
     private let meetingId: UUID
     private var meetingStore: MeetingStore?
@@ -40,7 +42,11 @@ class MeetingEditViewModel: ObservableObject {
     }
 
     func save() {
-        guard var meeting = meetingStore?.meetings.first(where: { $0.id == meetingId }) else { return }
+        saveError = nil
+        guard var meeting = meetingStore?.meetings.first(where: { $0.id == meetingId }) else {
+            saveError = "議事録が見つかりませんでした。削除された可能性があります。"
+            return
+        }
         meeting.title = title
         meeting.date = date
         meeting.location = location
@@ -50,5 +56,6 @@ class MeetingEditViewModel: ObservableObject {
             meeting.summary = summary
         }
         meetingStore?.update(meeting)
+        isSaved = true
     }
 }

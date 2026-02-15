@@ -13,6 +13,8 @@ struct MeetingRecord: Codable {
     let status: String
     let audioDuration: Double?
     let transcriptionText: String?
+    let customTemplateId: UUID?
+    let transcriptionSegmentsJson: String?
     let summaryRawText: String?
     let summaryJson: String?
     let createdAt: Date
@@ -23,7 +25,9 @@ struct MeetingRecord: Codable {
         case userId = "user_id"
         case title, date, location, participants, template, status
         case audioDuration = "audio_duration"
+        case customTemplateId = "custom_template_id"
         case transcriptionText = "transcription_text"
+        case transcriptionSegmentsJson = "transcription_segments_json"
         case summaryRawText = "summary_raw_text"
         case summaryJson = "summary_json"
         case createdAt = "created_at"
@@ -53,7 +57,7 @@ class SyncService: ObservableObject {
                 .execute()
         } catch {
             syncError = "同期に失敗しました: \(error.localizedDescription)"
-            print("アップロードエラー: \(error)")
+            AppLogger.sync.error("アップロードエラー: \(error)")
         }
     }
 
@@ -72,7 +76,7 @@ class SyncService: ObservableObject {
             return records.map { recordToMeeting($0) }
         } catch {
             syncError = "データの取得に失敗しました: \(error.localizedDescription)"
-            print("ダウンロードエラー: \(error)")
+            AppLogger.sync.error("ダウンロードエラー: \(error)")
             return []
         }
     }
@@ -97,7 +101,7 @@ class SyncService: ObservableObject {
                     .upsert(record)
                     .execute()
             } catch {
-                print("同期エラー (id: \(meeting.id)): \(error.localizedDescription)")
+                AppLogger.sync.error("同期エラー (id: \(meeting.id)): \(error.localizedDescription)")
             }
         }
 
@@ -128,7 +132,7 @@ class SyncService: ObservableObject {
             lastSyncDate = Date()
         } catch {
             syncError = "同期に失敗しました: \(error.localizedDescription)"
-            print("同期エラー: \(error)")
+            AppLogger.sync.error("同期エラー: \(error)")
         }
     }
 
@@ -141,7 +145,7 @@ class SyncService: ObservableObject {
                 .eq("id", value: id.uuidString)
                 .execute()
         } catch {
-            print("リモート削除エラー: \(error.localizedDescription)")
+            AppLogger.sync.error("リモート削除エラー: \(error.localizedDescription)")
         }
     }
 
@@ -157,12 +161,18 @@ class SyncService: ObservableObject {
     }
 
     private func meetingToRecord(_ meeting: Meeting, userId: UUID) -> MeetingRecord {
+        let encoder = JSONEncoder()
+
         var summaryJson: String?
-        if let summary = meeting.summary {
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(summary) {
-                summaryJson = String(data: data, encoding: .utf8)
-            }
+        if let summary = meeting.summary,
+           let data = try? encoder.encode(summary) {
+            summaryJson = String(data: data, encoding: .utf8)
+        }
+
+        var segmentsJson: String?
+        if let segments = meeting.transcriptionSegments,
+           let data = try? encoder.encode(segments) {
+            segmentsJson = String(data: data, encoding: .utf8)
         }
 
         return MeetingRecord(
@@ -176,6 +186,8 @@ class SyncService: ObservableObject {
             status: meeting.status.rawValue,
             audioDuration: meeting.audioDuration,
             transcriptionText: meeting.transcriptionText,
+            customTemplateId: meeting.customTemplateId,
+            transcriptionSegmentsJson: segmentsJson,
             summaryRawText: meeting.summary?.rawText,
             summaryJson: summaryJson,
             createdAt: meeting.createdAt,
@@ -184,30 +196,40 @@ class SyncService: ObservableObject {
     }
 
     private func recordToMeeting(_ record: MeetingRecord) -> Meeting {
+        let decoder = JSONDecoder()
+
         var summary: MeetingSummary?
         if let jsonString = record.summaryJson,
            let data = jsonString.data(using: .utf8) {
-            let decoder = JSONDecoder()
             summary = try? decoder.decode(MeetingSummary.self, from: data)
         } else if let rawText = record.summaryRawText {
             summary = MeetingSummary(rawText: rawText)
         }
 
-        return Meeting(
+        var segments: [TranscriptionSegment]?
+        if let jsonString = record.transcriptionSegmentsJson,
+           let data = jsonString.data(using: .utf8) {
+            segments = try? decoder.decode([TranscriptionSegment].self, from: data)
+        }
+
+        var meeting = Meeting(
             id: record.id,
             title: record.title,
             date: record.date,
             location: record.location,
             participants: record.participants,
             template: MeetingTemplate(rawValue: record.template) ?? .standard,
+            customTemplateId: record.customTemplateId,
             status: MeetingStatus(rawValue: record.status) ?? .completed,
             audioFilePath: nil,
             audioDuration: record.audioDuration,
             transcriptionText: record.transcriptionText,
-            transcriptionSegments: nil,
+            transcriptionSegments: segments,
             summary: summary,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt
         )
+        meeting.status = meeting.correctedStatus
+        return meeting
     }
 }

@@ -16,7 +16,11 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("検索")
-            .searchable(text: $viewModel.query, prompt: "キーワードを入力")
+            .searchable(
+                text: $viewModel.query,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "キーワードを入力"
+            )
             .onSubmit(of: .search) {
                 viewModel.addToRecentSearches(viewModel.query)
             }
@@ -29,11 +33,19 @@ struct SearchView: View {
     private var recentSearchesView: some View {
         VStack(alignment: .leading) {
             if !viewModel.recentSearches.isEmpty {
-                Text("最近の検索")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-                    .padding(.top, 12)
+                HStack {
+                    Text("最近の検索")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("クリア") {
+                        viewModel.clearRecentSearches()
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
+                .padding(.top, 12)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -41,12 +53,16 @@ struct SearchView: View {
                             Button {
                                 viewModel.query = term
                             } label: {
-                                Text(term)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color(.systemGray5))
-                                    .cornerRadius(16)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.caption2)
+                                    Text(term)
+                                        .font(.subheadline)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(16)
                             }
                             .buttonStyle(.plain)
                         }
@@ -88,9 +104,8 @@ struct SearchView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         MeetingListItemView(meeting: meeting)
                         if let snippet = searchSnippet(for: meeting) {
-                            Text(snippet)
+                            highlightedText(snippet, query: viewModel.query)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
                                 .lineLimit(2)
                         }
                     }
@@ -99,14 +114,33 @@ struct SearchView: View {
         }
     }
 
+    private func highlightedText(_ text: String, query: String) -> Text {
+        guard !query.isEmpty else { return Text(text).foregroundColor(.secondary) }
+
+        var attributed = AttributedString(text)
+        attributed.foregroundColor = .secondary
+
+        let lowercasedText = text.lowercased()
+        let lowercasedQuery = query.lowercased()
+        var searchStart = lowercasedText.startIndex
+
+        while let range = lowercasedText.range(of: lowercasedQuery, range: searchStart..<lowercasedText.endIndex) {
+            if let attrRange = Range(range, in: attributed) {
+                attributed[attrRange].foregroundColor = .primary
+                attributed[attrRange].font = .caption.bold()
+            }
+            searchStart = range.upperBound
+        }
+
+        return Text(attributed)
+    }
+
     private func searchSnippet(for meeting: Meeting) -> String? {
         let query = viewModel.query.lowercased()
         guard !query.isEmpty else { return nil }
 
-        // タイトルにマッチした場合はスニペット不要
         if meeting.title.lowercased().contains(query) { return nil }
 
-        // 文字起こしテキストからマッチ箇所を抽出
         if let text = meeting.transcriptionText,
            let range = text.lowercased().range(of: query) {
             let matchIndex = text.distance(from: text.startIndex, to: range.lowerBound)
@@ -118,7 +152,6 @@ struct SearchView: View {
             return "\(prefix)\(snippet)\(suffix)"
         }
 
-        // 要約テキストからマッチ箇所を抽出
         if let rawText = meeting.summary?.rawText,
            let range = rawText.lowercased().range(of: query) {
             let matchIndex = rawText.distance(from: rawText.startIndex, to: range.lowerBound)

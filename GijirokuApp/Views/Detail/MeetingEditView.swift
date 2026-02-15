@@ -80,7 +80,9 @@ struct MeetingEditView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("保存") {
                     viewModel.save()
-                    dismiss()
+                    if viewModel.saveError == nil {
+                        dismiss()
+                    }
                 }
                 .fontWeight(.bold)
             }
@@ -97,5 +99,10 @@ struct MeetingEditView: View {
             viewModel.setStore(meetingStore)
         }
         .interactiveDismissDisabled(viewModel.hasUnsavedChanges)
+        .alert("保存エラー", isPresented: .init(get: { viewModel.saveError != nil }, set: { if !$0 { viewModel.saveError = nil } })) {
+            Button("OK") { viewModel.saveError = nil }
+        } message: {
+            Text(viewModel.saveError ?? "")
+        }
     }
 }

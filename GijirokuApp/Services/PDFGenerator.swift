@@ -126,6 +126,12 @@ class PDFGenerator {
     private func drawSummaryContent(meeting: Meeting, summary: MeetingSummary, y: CGFloat, context: UIGraphicsPDFRendererContext, pageNumber: inout Int) -> CGFloat {
         var currentY = y
 
+        if meeting.isCustomTemplate {
+            let sectionTitle = meeting.effectiveTemplateName
+            currentY = drawSection(title: sectionTitle, content: summary.rawText, y: currentY, context: context, pageNumber: &pageNumber)
+            return currentY
+        }
+
         switch meeting.template {
         case .standard:
             if let agenda = summary.agenda, !agenda.isEmpty {

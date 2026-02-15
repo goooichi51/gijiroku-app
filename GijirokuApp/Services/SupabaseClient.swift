@@ -12,16 +12,12 @@ class SupabaseManager {
         let key = Secrets.supabaseAnonKey
 
         if url.isEmpty || key.isEmpty {
-            // 開発中はダミーURLで初期化（Edge Function呼び出し時にエラーになる）
-            client = SupabaseClient(
-                supabaseURL: URL(string: "https://placeholder.supabase.co")!,
-                supabaseKey: "placeholder"
-            )
-        } else {
-            client = SupabaseClient(
-                supabaseURL: URL(string: url)!,
-                supabaseKey: key
-            )
+            AppLogger.sync.warning("Supabase URLまたはAnon Keyが未設定です")
         }
+
+        client = SupabaseClient(
+            supabaseURL: URL(string: url.isEmpty ? "https://placeholder.supabase.co" : url)!,
+            supabaseKey: key.isEmpty ? "placeholder" : key
+        )
     }
 }

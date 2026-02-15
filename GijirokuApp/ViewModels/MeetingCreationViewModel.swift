@@ -7,6 +7,7 @@ class MeetingCreationViewModel: ObservableObject {
     @Published var location = ""
     @Published var participants: [String] = []
     @Published var selectedTemplate: MeetingTemplate = .standard
+    @Published var selectedCustomTemplateId: UUID?
 
     @Published var isTranscribing = false
     @Published var transcriptionProgress: Double = 0.0
@@ -76,6 +77,7 @@ class MeetingCreationViewModel: ObservableObject {
             location: location,
             participants: participants,
             template: selectedTemplate,
+            customTemplateId: selectedCustomTemplateId,
             status: transcriptionText != nil ? .readyForSummary : .transcribing,
             audioFilePath: audioFileURL.path,
             audioDuration: audioDuration,

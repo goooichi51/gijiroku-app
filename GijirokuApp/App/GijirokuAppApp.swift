@@ -4,6 +4,7 @@ import SwiftUI
 struct GijirokuAppApp: App {
     @StateObject private var meetingStore = MeetingStore()
     @StateObject private var authService = AuthService()
+    @StateObject private var phoneSession = PhoneSessionManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some Scene {
@@ -25,9 +26,24 @@ struct GijirokuAppApp: App {
                 }
             }
             .task {
+                phoneSession.activate()
                 await authService.restoreSession()
             }
+            .onChange(of: phoneSession.hasNewRecording) { _, hasNew in
+                if hasNew, let url = phoneSession.receivedAudioURL {
+                    handleWatchRecording(url: url, duration: phoneSession.receivedDuration)
+                    phoneSession.hasNewRecording = false
+                }
+            }
         }
+    }
+
+    private func handleWatchRecording(url: URL, duration: TimeInterval) {
+        var meeting = Meeting(title: "", template: .standard)
+        meeting.audioFilePath = url.path
+        meeting.audioDuration = duration
+        meeting.status = .readyForSummary
+        meetingStore.add(meeting)
     }
 
     private var loadingView: some View {

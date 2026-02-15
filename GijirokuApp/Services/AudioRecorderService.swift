@@ -101,7 +101,7 @@ class AudioRecorderService: NSObject, ObservableObject {
         do {
             try AVAudioSession.sharedInstance().setActive(false)
         } catch {
-            print("オーディオセッションの停止に失敗: \(error.localizedDescription)")
+            AppLogger.recording.error("オーディオセッションの停止に失敗: \(error.localizedDescription)")
         }
 
         return url
@@ -201,7 +201,7 @@ class AudioRecorderService: NSObject, ObservableObject {
 extension AudioRecorderService: AVAudioRecorderDelegate {
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         if !flag {
-            print("録音が異常終了しました")
+            AppLogger.recording.error("録音が異常終了しました")
         }
     }
 }

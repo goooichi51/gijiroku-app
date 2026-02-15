@@ -2,9 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var meetingStore: MeetingStore
-    @StateObject private var viewModel = HomeViewModel()
     @ObservedObject private var planManager = PlanManager.shared
-    @State private var showUpgradeAlert = false
     @State private var meetingToDelete: Meeting?
     @State private var isSyncing = false
 
@@ -49,27 +47,6 @@ struct HomeView: View {
             .refreshable {
                 await meetingStore.syncWithCloud()
             }
-            .fullScreenCover(isPresented: $viewModel.showRecording) {
-                RecordingView { url, duration in
-                    viewModel.onRecordingComplete(url: url, duration: duration)
-                }
-            }
-            .sheet(isPresented: $viewModel.showMeetingCreation) {
-                if let url = viewModel.recordedAudioURL {
-                    NavigationStack {
-                        MeetingCreationView(
-                            audioFileURL: url,
-                            audioDuration: viewModel.recordedDuration
-                        )
-                        .environmentObject(meetingStore)
-                    }
-                }
-            }
-            .alert("録音回数の上限に達しました", isPresented: $showUpgradeAlert) {
-                Button("OK") {}
-            } message: {
-                Text("Freeプランでは月5回まで録音できます。Standardプランにアップグレードすると無制限に録音できます。")
-            }
             .confirmationDialog(
                 "この議事録を削除しますか？",
                 isPresented: Binding(
@@ -93,14 +70,6 @@ struct HomeView: View {
         }
     }
 
-    private func startRecordingIfAllowed() {
-        if planManager.canStartRecording {
-            viewModel.showRecording = true
-        } else {
-            showUpgradeAlert = true
-        }
-    }
-
     private var emptyState: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -113,16 +82,11 @@ struct HomeView: View {
                 Text("議事録がありません")
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("録音ボタンを押して\n会議を録音しましょう")
+                Text("下の録音ボタンを押して\n会議を録音しましょう")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-
-            RecordButton {
-                startRecordingIfAllowed()
-            }
-            .padding(.top, 8)
 
             if planManager.currentPlan == .free {
                 freeUsageLabel
@@ -154,16 +118,6 @@ struct HomeView: View {
                     meetingToDelete = meetingStore.meetings[first]
                 }
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Spacer()
-                RecordButton {
-                    startRecordingIfAllowed()
-                }
-                Spacer()
-            }
-            .padding(.bottom, 8)
         }
     }
 

@@ -44,10 +44,15 @@ class MeetingDetailViewModel: ObservableObject {
                 location: meeting.location,
                 participants: meeting.participants
             )
+            var customTemplate: CustomTemplate?
+            if let customId = meeting.customTemplateId {
+                customTemplate = CustomTemplateStore.shared.template(for: customId)
+            }
             let summary = try await summarizationService.summarize(
                 transcription: text,
                 template: meeting.template,
-                metadata: metadata
+                metadata: metadata,
+                customTemplate: customTemplate
             )
             meeting.summary = summary
             meeting.status = .completed

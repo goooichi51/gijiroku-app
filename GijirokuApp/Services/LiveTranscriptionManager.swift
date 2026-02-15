@@ -50,7 +50,7 @@ class LiveTranscriptionManager: ObservableObject {
         do {
             try audioEngine.start()
         } catch {
-            print("AudioEngine起動失敗: \(error.localizedDescription)")
+            AppLogger.transcription.error("AudioEngine起動失敗: \(error.localizedDescription)")
             isActive = false
             return
         }
@@ -61,7 +61,7 @@ class LiveTranscriptionManager: ObservableObject {
                 try await analyzer.start(inputSequence: stream)
             } catch {
                 if !Task.isCancelled {
-                    print("SpeechAnalyzer入力エラー: \(error.localizedDescription)")
+                    AppLogger.transcription.error("SpeechAnalyzer入力エラー: \(error.localizedDescription)")
                 }
             }
         }
@@ -78,7 +78,7 @@ class LiveTranscriptionManager: ObservableObject {
                 }
             } catch {
                 if !Task.isCancelled {
-                    print("リアルタイム文字起こしエラー: \(error.localizedDescription)")
+                    AppLogger.transcription.error("リアルタイム文字起こしエラー: \(error.localizedDescription)")
                 }
             }
 

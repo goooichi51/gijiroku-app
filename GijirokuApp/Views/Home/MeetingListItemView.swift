@@ -6,7 +6,7 @@ struct MeetingListItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Image(systemName: meeting.template.icon)
+                Image(systemName: meeting.effectiveTemplateIcon)
                     .foregroundColor(templateColor)
                     .accessibilityHidden(true)
                 Text(meeting.title.isEmpty ? "無題の議事録" : meeting.title)
@@ -43,7 +43,7 @@ struct MeetingListItemView: View {
             }
 
             HStack {
-                Text(meeting.template.displayName)
+                Text(meeting.effectiveTemplateName)
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
@@ -70,12 +70,13 @@ struct MeetingListItemView: View {
         if !meeting.participants.isEmpty {
             parts.append("参加者\(meeting.participants.count)人")
         }
-        parts.append(meeting.template.displayName)
+        parts.append(meeting.effectiveTemplateName)
         parts.append(meeting.status.displayName)
         return parts.joined(separator: "、")
     }
 
     private var templateColor: Color {
+        if meeting.isCustomTemplate { return .teal }
         switch meeting.template {
         case .standard: return .blue
         case .simple: return .gray

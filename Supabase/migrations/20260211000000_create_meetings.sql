@@ -62,13 +62,19 @@ create policy "ユーザーは自分の議事録を削除可能"
 
 -- 新規ユーザー登録時にプロフィール自動作成
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, email)
+  insert into public.profiles (id, email)
   values (new.id, new.email);
   return new;
+exception when others then
+  return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users

@@ -30,6 +30,27 @@ enum PromptTemplates {
         }
     }
 
+    static func buildCustomPrompt(
+        customTemplate: CustomTemplate,
+        metadata: MeetingMetadata
+    ) -> String {
+        let base = """
+        あなたは議事録作成のプロフェッショナルです。
+        以下の文字起こしテキストから議事録を作成してください。
+        日本語で、丁寧語（です・ます調）で記述してください。
+
+        会議情報:
+        - タイトル: \(metadata.title)
+        - 日時: \(metadata.date)
+        - 場所: \(metadata.location)
+        - 参加者: \(metadata.participants.joined(separator: ", "))
+
+        出力形式の指示:
+        \(customTemplate.promptFormat)
+        """
+        return base
+    }
+
     private static let standardFormat = """
 
     以下のJSON形式で出力してください:

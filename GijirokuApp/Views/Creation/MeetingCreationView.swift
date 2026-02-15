@@ -16,7 +16,10 @@ struct MeetingCreationView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // テンプレート選択
-                TemplateSelectionView(selected: $viewModel.selectedTemplate)
+                TemplateSelectionView(
+                    selected: $viewModel.selectedTemplate,
+                    selectedCustomTemplateId: $viewModel.selectedCustomTemplateId
+                )
 
                 // 会議メタ情報
                 MeetingMetadataFormView(

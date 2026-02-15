@@ -6,6 +6,8 @@ struct MeetingDetailView: View {
     @StateObject private var audioPlayer = AudioPlayerService()
     @State private var showShareSheet = false
     @State private var pdfData: Data?
+    @State private var shareURL: URL?
+    @State private var shareError: String?
 
     init(meeting: Meeting) {
         _viewModel = StateObject(wrappedValue: MeetingDetailViewModel(meeting: meeting))
@@ -150,12 +152,14 @@ struct MeetingDetailView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            if let data = pdfData {
-                let fileName = "\(viewModel.meeting.title.isEmpty ? "議事録" : viewModel.meeting.title).pdf"
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-                let _ = try? data.write(to: tempURL)
-                ShareSheet(activityItems: [tempURL])
+            if let url = shareURL {
+                ShareSheet(activityItems: [url])
             }
+        }
+        .alert("エラー", isPresented: .init(get: { shareError != nil }, set: { if !$0 { shareError = nil } })) {
+            Button("OK") { shareError = nil }
+        } message: {
+            Text(shareError ?? "")
         }
     }
 
@@ -211,7 +215,20 @@ struct MeetingDetailView: View {
     }
 
     private func generateAndShare() {
-        pdfData = PDFGenerator().generatePDF(from: viewModel.meeting)
-        showShareSheet = true
+        let data = PDFGenerator().generatePDF(from: viewModel.meeting)
+        guard !data.isEmpty else {
+            shareError = "PDFの生成に失敗しました"
+            return
+        }
+        let fileName = "\(viewModel.meeting.title.isEmpty ? "議事録" : viewModel.meeting.title).pdf"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        do {
+            try data.write(to: tempURL)
+            pdfData = data
+            shareURL = tempURL
+            showShareSheet = true
+        } catch {
+            shareError = "PDFの保存に失敗しました: \(error.localizedDescription)"
+        }
     }
 }

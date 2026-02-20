@@ -61,3 +61,34 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: GijirokuApp
+
+schemes:
+  GijirokuApp:
+    build:
+      targets:
+        GijirokuApp: all
+        GijirokuAppTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GijirokuAppTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  GijirokuWatch:
+    build:
+      targets:
+        GijirokuWatch: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

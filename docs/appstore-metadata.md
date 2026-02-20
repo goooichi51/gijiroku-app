@@ -81,6 +81,18 @@ Apple IDの「サブスクリプション」設定から管理・解約できま
 - **グループ名**: standard
 - **説明**: AI議事録・PDF出力・全テンプレート・無制限録音
 
+## URL情報
+
+| 用途 | URL | ファイル |
+|------|-----|---------|
+| プライバシーポリシー | （GitHub Pages等でホスト） | `docs/legal/privacy-policy.html` |
+| 利用規約 | （GitHub Pages等でホスト） | `docs/legal/terms-of-service.html` |
+| サポート | （GitHub Pages等でホスト） | `docs/legal/support.html` |
+| サポートメール | gijiroku.app.support@gmail.com | — |
+
+> **ホスティング手順**: GitHub Pagesで `docs/legal/` を公開するか、Netlify/Vercel等にデプロイしてURLを取得。
+> App Store Connect の「App情報」→「プライバシーポリシーURL」「サポートURL」に設定。
+
 ## レビュー申請時の注意事項
 
 - デモアカウント: test@example.com / test123456

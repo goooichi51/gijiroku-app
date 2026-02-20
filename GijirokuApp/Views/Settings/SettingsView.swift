@@ -29,7 +29,7 @@ struct SettingsView: View {
     private func openContactEmail() {
         let subject = "議事録アプリ お問い合わせ (v\(appVersion))"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        if let url = URL(string: "mailto:support@gijiroku-app.com?subject=\(subject)") {
+        if let url = URL(string: "mailto:gijiroku.app.support@gmail.com?subject=\(subject)") {
             UIApplication.shared.open(url)
         }
     }

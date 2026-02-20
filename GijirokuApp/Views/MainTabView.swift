@@ -8,12 +8,16 @@ struct MainTabView: View {
     @State private var showMeetingCreation = false
     @State private var recordedAudioURL: URL?
     @State private var recordedDuration: TimeInterval = 0
+    @State private var recordedTitle = ""
+    @State private var recordedLocation = ""
+    @State private var recordedParticipants: [String] = []
+    @State private var recordedNotes: String?
     @State private var showUpgradeAlert = false
     @ObservedObject private var planManager = PlanManager.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            HomeView(onRecordTap: startRecordingIfAllowed)
                 .tabItem {
                     Label("ホーム", systemImage: "house")
                 }
@@ -25,14 +29,14 @@ struct MainTabView: View {
                 }
                 .tag(1)
         }
-        .overlay(alignment: .bottom) {
-            centerRecordButton
-                .padding(.bottom, 50)
-        }
         .fullScreenCover(isPresented: $showRecording) {
-            RecordingView { url, duration in
+            RecordingView { url, duration, title, location, participants, notes in
                 recordedAudioURL = url
                 recordedDuration = duration
+                recordedTitle = title
+                recordedLocation = location
+                recordedParticipants = participants
+                recordedNotes = notes
                 showMeetingCreation = true
             }
         }
@@ -41,7 +45,11 @@ struct MainTabView: View {
                 NavigationStack {
                     MeetingCreationView(
                         audioFileURL: url,
-                        audioDuration: recordedDuration
+                        audioDuration: recordedDuration,
+                        initialTitle: recordedTitle,
+                        initialLocation: recordedLocation,
+                        initialParticipants: recordedParticipants,
+                        initialNotes: recordedNotes
                     )
                     .environmentObject(meetingStore)
                 }
@@ -55,24 +63,6 @@ struct MainTabView: View {
         .task {
             await meetingStore.syncWithCloud()
         }
-    }
-
-    private var centerRecordButton: some View {
-        Button {
-            startRecordingIfAllowed()
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 56, height: 56)
-                    .shadow(color: .red.opacity(0.3), radius: 8, y: 4)
-                Image(systemName: "mic.fill")
-                    .font(.title3)
-                    .foregroundColor(.white)
-            }
-        }
-        .accessibilityLabel("録音を開始")
-        .accessibilityHint("タップして会議の録音を開始します")
     }
 
     private func startRecordingIfAllowed() {

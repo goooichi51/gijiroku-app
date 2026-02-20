@@ -94,6 +94,21 @@ class AuthService: ObservableObject {
         }
     }
 
+    func deleteAccount() async {
+        errorMessage = nil
+        do {
+            // Supabase Edge Function経由でユーザーデータとアカウントを削除
+            let _: Void = try await client.functions.invoke(
+                "delete-account",
+                options: .init()
+            )
+            try await client.auth.signOut()
+            isAuthenticated = false
+        } catch {
+            errorMessage = "アカウント削除に失敗しました: \(error.localizedDescription)"
+        }
+    }
+
     func skipAuth() {
         isAuthenticated = true
         isLoading = false

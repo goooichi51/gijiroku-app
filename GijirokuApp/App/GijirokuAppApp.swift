@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 @main
 struct GijirokuAppApp: App {
@@ -6,6 +7,7 @@ struct GijirokuAppApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var phoneSession = PhoneSessionManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -28,11 +30,22 @@ struct GijirokuAppApp: App {
             .task {
                 phoneSession.activate()
                 await authService.restoreSession()
+                #if DEBUG
+                if meetingStore.meetings.isEmpty || meetingStore.meetings.allSatisfy({ $0.transcriptionText == nil && $0.summary == nil }) {
+                    meetingStore.loadSampleData()
+                }
+                #endif
             }
             .onChange(of: phoneSession.hasNewRecording) { _, hasNew in
                 if hasNew, let url = phoneSession.receivedAudioURL {
                     handleWatchRecording(url: url, duration: phoneSession.receivedDuration)
                     phoneSession.hasNewRecording = false
+                }
+            }
+            .onChange(of: scenePhase) {
+                if scenePhase == .background {
+                    // アプリがバックグラウンドに入った際、録音中でなければオーディオセッションを解放
+                    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 }
             }
         }

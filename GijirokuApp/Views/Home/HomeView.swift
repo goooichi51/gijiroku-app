@@ -6,6 +6,8 @@ struct HomeView: View {
     @State private var meetingToDelete: Meeting?
     @State private var isSyncing = false
 
+    var onRecordTap: (() -> Void)?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -13,6 +15,27 @@ struct HomeView: View {
                     emptyState
                 } else {
                     meetingList
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let onRecordTap {
+                    Button {
+                        onRecordTap()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 56, height: 56)
+                                .shadow(color: .red.opacity(0.3), radius: 8, y: 4)
+                            Image(systemName: "mic.fill")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .accessibilityLabel("録音を開始")
+                    .accessibilityHint("タップして会議の録音を開始します")
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 4)
                 }
             }
             .navigationTitle("議事録")

@@ -13,7 +13,7 @@ enum MeetingStatus: String, Codable {
         case .transcribing: return "文字起こし中"
         case .readyForSummary: return "要約待ち"
         case .summarizing: return "要約生成中"
-        case .completed: return "処理済み"
+        case .completed: return "保存済み"
         }
     }
 

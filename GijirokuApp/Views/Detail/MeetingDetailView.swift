@@ -4,10 +4,10 @@ struct MeetingDetailView: View {
     @EnvironmentObject var meetingStore: MeetingStore
     @StateObject private var viewModel: MeetingDetailViewModel
     @StateObject private var audioPlayer = AudioPlayerService()
-    @State private var showShareSheet = false
-    @State private var pdfData: Data?
-    @State private var shareURL: URL?
     @State private var shareError: String?
+    @State private var sharePDFURL: URL?
+    @AppStorage("selectedPDFDesign") private var selectedDesignRaw = PDFDesign.business.rawValue
+    @ObservedObject private var planManager = PlanManager.shared
 
     init(meeting: Meeting) {
         _viewModel = StateObject(wrappedValue: MeetingDetailViewModel(meeting: meeting))
@@ -92,7 +92,7 @@ struct MeetingDetailView: View {
 
             // 下部ボタン
             VStack(spacing: 12) {
-                if PlanManager.shared.canExportPDF {
+                if planManager.canExportPDF {
                     NavigationLink {
                         PDFPreviewView(meeting: viewModel.meeting)
                     } label: {
@@ -106,18 +106,32 @@ struct MeetingDetailView: View {
                         .cornerRadius(12)
                     }
 
-                    Button {
-                        generateAndShare()
-                    } label: {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("共有（LINE等）")
+                    if let url = sharePDFURL {
+                        ShareLink(item: url, preview: SharePreview(viewModel.meeting.title.isEmpty ? "議事録" : viewModel.meeting.title)) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("共有（LINE等）")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                    } else {
+                        Button {
+                            generateSharePDF()
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("共有（LINE等）")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
                     }
                 } else {
                     HStack {
@@ -151,9 +165,14 @@ struct MeetingDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = shareURL {
-                ShareSheet(activityItems: [url])
+        .task {
+            generateSharePDF()
+            // 要約がまだない場合は自動でAI要約を開始
+            if viewModel.canGenerateSummary {
+                await viewModel.generateSummary()
+                if viewModel.hasSummary {
+                    meetingStore.update(viewModel.meeting)
+                }
             }
         }
         .alert("エラー", isPresented: .init(get: { shareError != nil }, set: { if !$0 { shareError = nil } })) {
@@ -214,19 +233,15 @@ struct MeetingDetailView: View {
         }
     }
 
-    private func generateAndShare() {
-        let data = PDFGenerator().generatePDF(from: viewModel.meeting)
-        guard !data.isEmpty else {
-            shareError = "PDFの生成に失敗しました"
-            return
-        }
+    private func generateSharePDF() {
+        let design = PDFDesign(rawValue: selectedDesignRaw) ?? .business
+        let data = PDFGenerator().generatePDF(from: viewModel.meeting, design: design)
+        guard !data.isEmpty else { return }
         let fileName = "\(viewModel.meeting.title.isEmpty ? "議事録" : viewModel.meeting.title).pdf"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
             try data.write(to: tempURL)
-            pdfData = data
-            shareURL = tempURL
-            showShareSheet = true
+            sharePDFURL = tempURL
         } catch {
             shareError = "PDFの保存に失敗しました: \(error.localizedDescription)"
         }

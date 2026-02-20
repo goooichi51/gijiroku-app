@@ -8,8 +8,9 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 30) {
-                Spacer()
+            ScrollView {
+            VStack(spacing: 24) {
+                Spacer().frame(height: 40)
 
                 // ロゴ
                 VStack(spacing: 12) {
@@ -155,8 +156,58 @@ struct LoginView: View {
                 }
                 .accessibilityLabel("ログインをスキップして利用開始")
 
-                Spacer()
+                #if DEBUG
+                // テストアカウント（デバッグ用）
+                VStack(spacing: 10) {
+                    Divider().padding(.horizontal, 30)
+
+                    Text("デバッグ用テストログイン")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .fontWeight(.bold)
+
+                    HStack(spacing: 16) {
+                        Button {
+                            PlanManager.shared.upgradeToPlan(.free)
+                            authService.skipAuth()
+                        } label: {
+                            HStack {
+                                Image(systemName: "person.circle")
+                                Text("Free")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(.systemGray5))
+                            .cornerRadius(12)
+                        }
+
+                        Button {
+                            PlanManager.shared.upgradeToPlan(.standard)
+                            authService.skipAuth()
+                        } label: {
+                            HStack {
+                                Image(systemName: "star.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text("Standard")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.blue.opacity(0.15))
+                            .cornerRadius(12)
+                        }
+                    }
+                    .padding(.horizontal, 30)
+                    .foregroundColor(.primary)
+                }
+                #endif
+
+                Spacer().frame(height: 30)
+            }
+            .padding(.vertical)
             }
         }
     }
+
 }

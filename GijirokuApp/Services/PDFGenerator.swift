@@ -5,17 +5,50 @@ class PDFGenerator {
     private let pageWidth: CGFloat = 595.28
     private let pageHeight: CGFloat = 841.89
     private let margin: CGFloat = 50
+    private let frameMargin: CGFloat = 22
 
     private var contentWidth: CGFloat { pageWidth - margin * 2 }
 
-    // フォント
-    private let titleFont = UIFont.systemFont(ofSize: 20, weight: .bold)
-    private let headingFont = UIFont.systemFont(ofSize: 14, weight: .bold)
-    private let bodyFont = UIFont.systemFont(ofSize: 11, weight: .regular)
-    private let captionFont = UIFont.systemFont(ofSize: 9, weight: .regular)
-    private let metadataFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+    private var design: PDFDesign = .business
 
-    func generatePDF(from meeting: Meeting) -> Data {
+    // MARK: - Fonts
+
+    private var titleFont: UIFont {
+        switch design {
+        case .business: return UIFont.systemFont(ofSize: 20, weight: .bold)
+        case .corporate: return UIFont.systemFont(ofSize: 18, weight: .semibold)
+        case .modern: return UIFont.systemFont(ofSize: 20, weight: .medium)
+        case .minimal: return UIFont.systemFont(ofSize: 16, weight: .bold)
+        }
+    }
+
+    private var headingFont: UIFont {
+        switch design {
+        case .business: return UIFont.systemFont(ofSize: 12, weight: .bold)
+        case .corporate: return UIFont.systemFont(ofSize: 12, weight: .semibold)
+        case .modern: return UIFont.systemFont(ofSize: 12, weight: .medium)
+        case .minimal: return UIFont.systemFont(ofSize: 11, weight: .bold)
+        }
+    }
+
+    private var bodyFont: UIFont {
+        switch design {
+        case .business: return UIFont.systemFont(ofSize: 10.5, weight: .regular)
+        case .corporate: return UIFont.systemFont(ofSize: 10.5, weight: .regular)
+        case .modern: return UIFont.systemFont(ofSize: 11, weight: .regular)
+        case .minimal: return UIFont.systemFont(ofSize: 10.5, weight: .light)
+        }
+    }
+
+    private let captionFont = UIFont.systemFont(ofSize: 8.5, weight: .regular)
+    private let metadataFont = UIFont.systemFont(ofSize: 10, weight: .regular)
+    private let metadataLabelFont = UIFont.systemFont(ofSize: 10, weight: .medium)
+
+    // MARK: - Generate
+
+    func generatePDF(from meeting: Meeting, design: PDFDesign = .business) -> Data {
+        self.design = design
+
         let pdfMetaData: [String: Any] = [
             kCGPDFContextTitle as String: meeting.title,
             kCGPDFContextCreator as String: "議事録アプリ"
@@ -30,22 +63,17 @@ class PDFGenerator {
 
         return renderer.pdfData { context in
             context.beginPage()
+            drawPageDecoration(in: context)
             var y = margin
 
-            // タイトル
-            y = drawCenteredText("会 議 議 事 録", font: titleFont, y: y, in: context)
-            y += 20
-
-            // 区切り線
-            y = drawSeparator(at: y, in: context)
-            y += 10
+            // ヘッダー
+            y = drawHeader(meeting: meeting, y: y, in: context)
 
             // メタ情報
             y = drawMetadata(meeting, at: y, in: context)
 
-            // 区切り線
-            y = drawSeparator(at: y, in: context)
-            y += 15
+            // セパレータ
+            y = drawContentSeparator(at: y, in: context)
 
             // 要約内容
             if let summary = meeting.summary {
@@ -59,69 +87,369 @@ class PDFGenerator {
         }
     }
 
-    // MARK: - Drawing Helpers
+    // MARK: - Page Decoration
 
-    private func drawCenteredText(_ text: String, font: UIFont, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
-        let attrs: [NSAttributedString.Key: Any] = [.font: font]
-        let size = text.size(withAttributes: attrs)
-        let x = (pageWidth - size.width) / 2
-        text.draw(at: CGPoint(x: x, y: y), withAttributes: attrs)
-        return y + size.height
+    private func drawPageDecoration(in context: UIGraphicsPDFRendererContext) {
+        switch design {
+        case .business:
+            // A4外枠（四角い枠）
+            let frameRect = CGRect(
+                x: frameMargin,
+                y: frameMargin,
+                width: pageWidth - frameMargin * 2,
+                height: pageHeight - frameMargin * 2
+            )
+            design.primaryColor.setStroke()
+            let path = UIBezierPath(rect: frameRect)
+            path.lineWidth = 1.0
+            path.stroke()
+
+        case .corporate:
+            // 上部カラー帯
+            let bandRect = CGRect(x: 0, y: 0, width: pageWidth, height: 6)
+            design.primaryColor.setFill()
+            UIBezierPath(rect: bandRect).fill()
+
+        case .modern:
+            // 上部アクセントライン
+            let lineRect = CGRect(x: 0, y: 0, width: pageWidth, height: 3)
+            design.primaryColor.setFill()
+            UIBezierPath(rect: lineRect).fill()
+
+        case .minimal:
+            break
+        }
     }
 
-    private func drawText(_ text: String, font: UIFont, y: CGFloat, maxWidth: CGFloat? = nil, in context: UIGraphicsPDFRendererContext, pageNumber: inout Int) -> CGFloat {
-        let width = maxWidth ?? contentWidth
-        let attrs: [NSAttributedString.Key: Any] = [.font: font]
-        let attributedString = NSAttributedString(string: text, attributes: attrs)
-        let rect = CGRect(x: margin, y: y, width: width, height: .greatestFiniteMagnitude)
-        let boundingRect = attributedString.boundingRect(with: rect.size, options: [.usesLineFragmentOrigin], context: nil)
+    // MARK: - Header
 
+    private func drawHeader(meeting: Meeting, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        switch design {
+        case .business:
+            return drawBusinessHeader(meeting: meeting, y: y, in: context)
+        case .corporate:
+            return drawCorporateHeader(meeting: meeting, y: y, in: context)
+        case .modern:
+            return drawModernHeader(meeting: meeting, y: y, in: context)
+        case .minimal:
+            return drawMinimalHeader(meeting: meeting, y: y, in: context)
+        }
+    }
+
+    private func drawBusinessHeader(meeting: Meeting, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
         var currentY = y
 
-        // ページをまたぐ場合
-        if currentY + boundingRect.height > pageHeight - margin - 30 {
-            drawFooter(pageNumber: pageNumber, in: context)
-            pageNumber += 1
-            context.beginPage()
-            currentY = margin
-        }
+        // 中央「会議議事録」
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: design.primaryColor
+        ]
+        let title = "会議議事録"
+        let titleSize = title.size(withAttributes: attrs)
+        title.draw(at: CGPoint(x: (pageWidth - titleSize.width) / 2, y: currentY), withAttributes: attrs)
+        currentY += titleSize.height + 6
 
-        let drawRect = CGRect(x: margin, y: currentY, width: width, height: boundingRect.height)
-        attributedString.draw(in: drawRect)
+        // 二重線
+        design.primaryColor.setStroke()
+        let thickLine = UIBezierPath()
+        thickLine.move(to: CGPoint(x: margin, y: currentY))
+        thickLine.addLine(to: CGPoint(x: pageWidth - margin, y: currentY))
+        thickLine.lineWidth = 1.5
+        thickLine.stroke()
 
-        return currentY + boundingRect.height
+        let thinLine = UIBezierPath()
+        thinLine.move(to: CGPoint(x: margin, y: currentY + 3))
+        thinLine.addLine(to: CGPoint(x: pageWidth - margin, y: currentY + 3))
+        thinLine.lineWidth = 0.5
+        thinLine.stroke()
+        currentY += 12
+
+        // 会議タイトル（中央）
+        let meetingTitle = meeting.title.isEmpty ? "無題の議事録" : meeting.title
+        let mtAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 14, weight: .bold),
+            .foregroundColor: design.primaryColor
+        ]
+        let mtSize = meetingTitle.size(withAttributes: mtAttrs)
+        meetingTitle.draw(at: CGPoint(x: (pageWidth - mtSize.width) / 2, y: currentY), withAttributes: mtAttrs)
+        currentY += mtSize.height + 15
+
+        return currentY
     }
 
-    private func drawSeparator(at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
-        let path = UIBezierPath()
-        path.move(to: CGPoint(x: margin, y: y))
-        path.addLine(to: CGPoint(x: pageWidth - margin, y: y))
-        UIColor.gray.setStroke()
-        path.lineWidth = 0.5
-        path.stroke()
-        return y + 5
+    private func drawCorporateHeader(meeting: Meeting, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
+
+        // 左太線アクセント + タイトル
+        let accentRect = CGRect(x: margin, y: currentY, width: 4, height: titleFont.lineHeight + 2)
+        design.primaryColor.setFill()
+        UIBezierPath(rect: accentRect).fill()
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: design.primaryColor
+        ]
+        "議事録".draw(at: CGPoint(x: margin + 10, y: currentY), withAttributes: attrs)
+        currentY += titleFont.lineHeight + 8
+
+        // 会議タイトル
+        let meetingTitle = meeting.title.isEmpty ? "無題の議事録" : meeting.title
+        let mtAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+            .foregroundColor: UIColor.darkGray
+        ]
+        meetingTitle.draw(at: CGPoint(x: margin, y: currentY), withAttributes: mtAttrs)
+        currentY += 22
+
+        return currentY
     }
+
+    private func drawModernHeader(meeting: Meeting, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: design.primaryColor
+        ]
+        "会議議事録".draw(at: CGPoint(x: margin, y: currentY), withAttributes: attrs)
+        currentY += titleFont.lineHeight + 6
+
+        // 会議タイトル
+        let meetingTitle = meeting.title.isEmpty ? "無題の議事録" : meeting.title
+        let mtAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 13, weight: .regular),
+            .foregroundColor: UIColor.darkGray
+        ]
+        meetingTitle.draw(at: CGPoint(x: margin, y: currentY), withAttributes: mtAttrs)
+        currentY += 22
+
+        return currentY
+    }
+
+    private func drawMinimalHeader(meeting: Meeting, y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
+
+        // 会議タイトルをそのまま表示
+        let meetingTitle = meeting.title.isEmpty ? "無題の議事録" : meeting.title
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: design.primaryColor
+        ]
+        meetingTitle.draw(at: CGPoint(x: margin, y: currentY), withAttributes: attrs)
+        currentY += titleFont.lineHeight + 12
+
+        return currentY
+    }
+
+    // MARK: - Metadata
 
     private func drawMetadata(_ meeting: Meeting, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        switch design {
+        case .business:
+            return drawBusinessMetadata(meeting, at: y, in: context)
+        case .corporate:
+            return drawCorporateMetadata(meeting, at: y, in: context)
+        case .modern:
+            return drawModernMetadata(meeting, at: y, in: context)
+        case .minimal:
+            return drawMinimalMetadata(meeting, at: y, in: context)
+        }
+    }
+
+    private func drawBusinessMetadata(_ meeting: Meeting, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
         var currentY = y
-        let attrs: [NSAttributedString.Key: Any] = [.font: metadataFont]
-        let lineHeight: CGFloat = 18
+
+        // テーブル形式のメタ情報（セル罫線付き）
+        let formatter = DateFormatter.japaneseFull
+        let rows: [(String, String)] = [
+            ("日  時", formatter.string(from: meeting.date)),
+            ("場  所", meeting.location.isEmpty ? "−" : meeting.location),
+            ("参加者", meeting.participants.isEmpty ? "−" : meeting.participants.joined(separator: "、"))
+        ]
+
+        let labelWidth: CGFloat = 65
+        let rowHeight: CGFloat = 22
+
+        design.primaryColor.withAlphaComponent(0.5).setStroke()
+
+        for (label, value) in rows {
+            // ラベルセル背景
+            let labelRect = CGRect(x: margin, y: currentY, width: labelWidth, height: rowHeight)
+            design.secondaryColor.setFill()
+            UIBezierPath(rect: labelRect).fill()
+
+            // ラベルセル罫線
+            let labelBorder = UIBezierPath(rect: labelRect)
+            labelBorder.lineWidth = 0.5
+            labelBorder.stroke()
+
+            // 値セル罫線
+            let valueRect = CGRect(x: margin + labelWidth, y: currentY, width: contentWidth - labelWidth, height: rowHeight)
+            let valueBorder = UIBezierPath(rect: valueRect)
+            valueBorder.lineWidth = 0.5
+            valueBorder.stroke()
+
+            // ラベルテキスト
+            let labelAttrs: [NSAttributedString.Key: Any] = [
+                .font: metadataLabelFont,
+                .foregroundColor: design.primaryColor
+            ]
+            label.draw(at: CGPoint(x: margin + 6, y: currentY + 4), withAttributes: labelAttrs)
+
+            // 値テキスト
+            let valueAttrs: [NSAttributedString.Key: Any] = [
+                .font: metadataFont,
+                .foregroundColor: UIColor.darkGray
+            ]
+            value.draw(at: CGPoint(x: margin + labelWidth + 8, y: currentY + 4), withAttributes: valueAttrs)
+
+            currentY += rowHeight
+        }
+
+        return currentY + 15
+    }
+
+    private func drawCorporateMetadata(_ meeting: Meeting, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
 
         let formatter = DateFormatter.japaneseFull
         let items: [(String, String)] = [
             ("日時", formatter.string(from: meeting.date)),
-            ("場所", meeting.location.isEmpty ? "-" : meeting.location),
-            ("参加者", meeting.participants.isEmpty ? "-" : meeting.participants.joined(separator: ", ")),
+            ("場所", meeting.location.isEmpty ? "−" : meeting.location),
+            ("参加者", meeting.participants.isEmpty ? "−" : meeting.participants.joined(separator: "、"))
         ]
 
         for (label, value) in items {
-            let text = "\(label):    \(value)"
-            text.draw(at: CGPoint(x: margin, y: currentY), withAttributes: attrs)
-            currentY += lineHeight
+            let labelAttrs: [NSAttributedString.Key: Any] = [
+                .font: metadataLabelFont,
+                .foregroundColor: design.primaryColor
+            ]
+            let valueAttrs: [NSAttributedString.Key: Any] = [
+                .font: metadataFont,
+                .foregroundColor: UIColor.darkGray
+            ]
+
+            // ラベル
+            label.draw(at: CGPoint(x: margin, y: currentY), withAttributes: labelAttrs)
+            let labelSize = label.size(withAttributes: labelAttrs)
+
+            // コロン + 値
+            let colonValue = "：\(value)"
+            colonValue.draw(at: CGPoint(x: margin + labelSize.width, y: currentY), withAttributes: valueAttrs)
+
+            currentY += 18
         }
 
-        return currentY + 5
+        // メタデータ下の横線
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: margin, y: currentY))
+        path.addLine(to: CGPoint(x: pageWidth - margin, y: currentY))
+        design.primaryColor.withAlphaComponent(0.2).setStroke()
+        path.lineWidth = 0.5
+        path.stroke()
+
+        return currentY + 12
     }
+
+    private func drawModernMetadata(_ meeting: Meeting, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
+
+        let formatter = DateFormatter.japaneseFull
+        let parts = [
+            formatter.string(from: meeting.date),
+            meeting.location.isEmpty ? nil : meeting.location,
+            meeting.participants.isEmpty ? nil : meeting.participants.joined(separator: "、")
+        ].compactMap { $0 }
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 9.5, weight: .regular),
+            .foregroundColor: UIColor.gray
+        ]
+
+        let text = parts.joined(separator: "  ｜  ")
+        let textSize = text.size(withAttributes: attrs)
+
+        if textSize.width > contentWidth {
+            // 幅に収まらない場合は改行
+            for part in parts {
+                part.draw(at: CGPoint(x: margin, y: currentY), withAttributes: attrs)
+                currentY += 14
+            }
+        } else {
+            text.draw(at: CGPoint(x: margin, y: currentY), withAttributes: attrs)
+            currentY += textSize.height + 8
+        }
+
+        return currentY + 8
+    }
+
+    private func drawMinimalMetadata(_ meeting: Meeting, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        var currentY = y
+
+        let formatter = DateFormatter.japaneseFull
+        let items: [(String, String)] = [
+            ("日時", formatter.string(from: meeting.date)),
+            ("場所", meeting.location.isEmpty ? "−" : meeting.location),
+            ("参加者", meeting.participants.isEmpty ? "−" : meeting.participants.joined(separator: "、"))
+        ]
+
+        let labelAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 9, weight: .medium),
+            .foregroundColor: UIColor.gray
+        ]
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 9, weight: .light),
+            .foregroundColor: UIColor.darkGray
+        ]
+
+        for (label, value) in items {
+            label.draw(at: CGPoint(x: margin, y: currentY), withAttributes: labelAttrs)
+            let labelSize = label.size(withAttributes: labelAttrs)
+            let spacing: CGFloat = 8
+            value.draw(at: CGPoint(x: margin + labelSize.width + spacing, y: currentY), withAttributes: valueAttrs)
+            currentY += 14
+        }
+
+        return currentY + 6
+    }
+
+    // MARK: - Content Separator
+
+    private func drawContentSeparator(at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        switch design {
+        case .business:
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: margin, y: y))
+            path.addLine(to: CGPoint(x: pageWidth - margin, y: y))
+            design.primaryColor.setStroke()
+            path.lineWidth = 1.0
+            path.stroke()
+            return y + 15
+
+        case .corporate:
+            return y + 8
+
+        case .modern:
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: margin, y: y))
+            path.addLine(to: CGPoint(x: pageWidth - margin, y: y))
+            design.primaryColor.withAlphaComponent(0.15).setStroke()
+            path.lineWidth = 0.5
+            path.stroke()
+            return y + 12
+
+        case .minimal:
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: margin, y: y))
+            path.addLine(to: CGPoint(x: margin + 40, y: y))
+            UIColor.lightGray.setStroke()
+            path.lineWidth = 0.5
+            path.stroke()
+            return y + 12
+        }
+    }
+
+    // MARK: - Section Drawing
 
     private func drawSummaryContent(meeting: Meeting, summary: MeetingSummary, y: CGFloat, context: UIGraphicsPDFRendererContext, pageNumber: inout Int) -> CGFloat {
         var currentY = y
@@ -191,13 +519,12 @@ class PDFGenerator {
             drawFooter(pageNumber: pageNumber, in: context)
             pageNumber += 1
             context.beginPage()
+            drawPageDecoration(in: context)
             currentY = margin
         }
 
-        // セクションタイトル
-        let headingAttrs: [NSAttributedString.Key: Any] = [.font: headingFont]
-        "■ \(title)".draw(at: CGPoint(x: margin, y: currentY), withAttributes: headingAttrs)
-        currentY += headingFont.lineHeight + 8
+        // デザイン別のセクション見出し
+        currentY = drawSectionHeading(title, at: currentY, in: context)
 
         // セクション内容
         currentY = drawText(content, font: bodyFont, y: currentY, in: context, pageNumber: &pageNumber)
@@ -206,11 +533,132 @@ class PDFGenerator {
         return currentY
     }
 
+    private func drawSectionHeading(_ title: String, at y: CGFloat, in context: UIGraphicsPDFRendererContext) -> CGFloat {
+        switch design {
+        case .business:
+            // ■ + テキスト + 下線
+            let fullTitle = "■ \(title)"
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: headingFont,
+                .foregroundColor: design.primaryColor
+            ]
+            fullTitle.draw(at: CGPoint(x: margin, y: y), withAttributes: attrs)
+            let lineY = y + headingFont.lineHeight + 3
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: margin, y: lineY))
+            path.addLine(to: CGPoint(x: pageWidth - margin, y: lineY))
+            design.primaryColor.withAlphaComponent(0.4).setStroke()
+            path.lineWidth = 0.5
+            path.stroke()
+            return lineY + 8
+
+        case .corporate:
+            // 左太線 + テキスト
+            let accentRect = CGRect(x: margin, y: y + 1, width: 3, height: headingFont.lineHeight)
+            design.primaryColor.setFill()
+            UIBezierPath(rect: accentRect).fill()
+
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: headingFont,
+                .foregroundColor: design.primaryColor
+            ]
+            title.draw(at: CGPoint(x: margin + 8, y: y), withAttributes: attrs)
+            return y + headingFont.lineHeight + 10
+
+        case .modern:
+            // テキスト + 細い下線
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: headingFont,
+                .foregroundColor: design.primaryColor
+            ]
+            title.draw(at: CGPoint(x: margin, y: y), withAttributes: attrs)
+            let lineY = y + headingFont.lineHeight + 2
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: margin, y: lineY))
+            path.addLine(to: CGPoint(x: pageWidth - margin, y: lineY))
+            design.primaryColor.withAlphaComponent(0.15).setStroke()
+            path.lineWidth = 0.5
+            path.stroke()
+            return lineY + 8
+
+        case .minimal:
+            // 太字テキストのみ
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: headingFont,
+                .foregroundColor: design.primaryColor
+            ]
+            title.draw(at: CGPoint(x: margin, y: y), withAttributes: attrs)
+            return y + headingFont.lineHeight + 6
+        }
+    }
+
+    // MARK: - Drawing Helpers
+
+    private func drawText(_ text: String, font: UIFont, y: CGFloat, maxWidth: CGFloat? = nil, in context: UIGraphicsPDFRendererContext, pageNumber: inout Int) -> CGFloat {
+        let width = maxWidth ?? contentWidth
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 4
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: UIColor.darkGray,
+            .paragraphStyle: paragraphStyle
+        ]
+        let attributedString = NSAttributedString(string: text, attributes: attrs)
+        let rect = CGRect(x: margin, y: y, width: width, height: .greatestFiniteMagnitude)
+        let boundingRect = attributedString.boundingRect(with: rect.size, options: [.usesLineFragmentOrigin], context: nil)
+
+        var currentY = y
+
+        // ページをまたぐ場合
+        if currentY + boundingRect.height > pageHeight - margin - 30 {
+            drawFooter(pageNumber: pageNumber, in: context)
+            pageNumber += 1
+            context.beginPage()
+            drawPageDecoration(in: context)
+            currentY = margin
+        }
+
+        let drawRect = CGRect(x: margin, y: currentY, width: width, height: boundingRect.height)
+        attributedString.draw(in: drawRect)
+
+        return currentY + boundingRect.height
+    }
+
+    // MARK: - Footer
+
     private func drawFooter(pageNumber: Int, in context: UIGraphicsPDFRendererContext) {
-        _ = drawSeparator(at: pageHeight - margin - 15, in: context)
-        let attrs: [NSAttributedString.Key: Any] = [.font: captionFont, .foregroundColor: UIColor.gray]
-        let footer = "議事録アプリ で自動生成  \(pageNumber)"
-        let size = footer.size(withAttributes: attrs)
-        footer.draw(at: CGPoint(x: (pageWidth - size.width) / 2, y: pageHeight - margin), withAttributes: attrs)
+        let footerY = pageHeight - margin - 10
+
+        // 上線
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: margin, y: footerY))
+        path.addLine(to: CGPoint(x: pageWidth - margin, y: footerY))
+
+        switch design {
+        case .business:
+            design.primaryColor.withAlphaComponent(0.3).setStroke()
+            path.lineWidth = 0.5
+        case .corporate:
+            design.primaryColor.withAlphaComponent(0.2).setStroke()
+            path.lineWidth = 0.5
+        case .modern:
+            design.primaryColor.withAlphaComponent(0.1).setStroke()
+            path.lineWidth = 0.3
+        case .minimal:
+            UIColor.lightGray.setStroke()
+            path.lineWidth = 0.3
+        }
+        path.stroke()
+
+        // ページ番号（中央）
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: captionFont,
+            .foregroundColor: UIColor.gray
+        ]
+        let pageStr = "- \(pageNumber) -"
+        let pageSize = pageStr.size(withAttributes: attrs)
+        pageStr.draw(at: CGPoint(x: (pageWidth - pageSize.width) / 2, y: footerY + 4), withAttributes: attrs)
     }
 }

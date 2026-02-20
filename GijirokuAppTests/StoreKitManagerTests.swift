@@ -54,7 +54,7 @@ final class StoreKitManagerTests: XCTestCase {
 
     func testSummarizationErrorNetworkError() {
         let error = SummarizationError.networkError("タイムアウト")
-        XCTAssertEqual(error.errorDescription, "タイムアウト")
+        XCTAssertEqual(error.errorDescription, "ネットワークエラーが発生しました")
     }
 
     // MARK: - RecordingError

@@ -14,6 +14,7 @@ struct Meeting: Identifiable, Codable, Equatable {
     var transcriptionText: String?
     var transcriptionSegments: [TranscriptionSegment]?
     var summary: MeetingSummary?
+    var notes: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -31,6 +32,7 @@ struct Meeting: Identifiable, Codable, Equatable {
         transcriptionText: String? = nil,
         transcriptionSegments: [TranscriptionSegment]? = nil,
         summary: MeetingSummary? = nil,
+        notes: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -47,6 +49,7 @@ struct Meeting: Identifiable, Codable, Equatable {
         self.transcriptionText = transcriptionText
         self.transcriptionSegments = transcriptionSegments
         self.summary = summary
+        self.notes = notes
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -73,17 +76,14 @@ struct Meeting: Identifiable, Codable, Equatable {
 
     /// 実際のデータ状態に基づいてステータスを補正する
     var correctedStatus: MeetingStatus {
-        // 要約があれば完了
-        if summary != nil { return .completed }
-        // 文字起こしがあれば要約待ち
-        if transcriptionText != nil { return .readyForSummary }
-        // それ以外は文字起こし中
-        if status == .completed { return .completed }
-        return .transcribing
+        // 文字起こしありで要約なし → 要約待ち（AI要約可能）
+        if transcriptionText != nil && summary == nil { return .readyForSummary }
+        // それ以外はすべて完了
+        return .completed
     }
 
     var searchableText: String {
-        [title, location, participants.joined(separator: " "), transcriptionText, summary?.rawText]
+        [title, location, participants.joined(separator: " "), transcriptionText, summary?.rawText, notes]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " ")

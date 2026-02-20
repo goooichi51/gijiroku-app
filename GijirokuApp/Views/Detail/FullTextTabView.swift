@@ -4,6 +4,33 @@ struct FullTextTabView: View {
     let segments: [TranscriptionSegment]
     @State private var showCopiedToast = false
 
+    private var groupedSegments: [(timestamp: String, text: String)] {
+        guard !segments.isEmpty else { return [] }
+        let intervalSeconds: TimeInterval = 600 // 10分
+        var groups: [(timestamp: String, text: String)] = []
+        var currentGroupStart = segments[0].startTime
+        var currentTexts: [String] = []
+
+        for segment in segments {
+            if segment.startTime - currentGroupStart >= intervalSeconds && !currentTexts.isEmpty {
+                groups.append((
+                    timestamp: TranscriptionSegment.formatTime(currentGroupStart),
+                    text: currentTexts.joined(separator: "")
+                ))
+                currentGroupStart = segment.startTime
+                currentTexts = []
+            }
+            currentTexts.append(segment.text)
+        }
+        if !currentTexts.isEmpty {
+            groups.append((
+                timestamp: TranscriptionSegment.formatTime(currentGroupStart),
+                text: currentTexts.joined(separator: "")
+            ))
+        }
+        return groups
+    }
+
     var body: some View {
         ScrollView {
             if segments.isEmpty {
@@ -17,25 +44,18 @@ struct FullTextTabView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
             } else {
-                LazyVStack(alignment: .leading, spacing: 16) {
-                    ForEach(segments) { segment in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(segment.formattedStartTime)
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    ForEach(Array(groupedSegments.enumerated()), id: \.offset) { _, group in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(group.timestamp)
                                 .font(.caption)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.blue)
                                 .monospacedDigit()
 
-                            Text(segment.text)
+                            Text(group.text)
                                 .font(.body)
                                 .textSelection(.enabled)
-                        }
-                        .contextMenu {
-                            Button {
-                                UIPasteboard.general.string = segment.text
-                                showCopiedToast = true
-                            } label: {
-                                Label("コピー", systemImage: "doc.on.doc")
-                            }
                         }
                     }
                 }
@@ -62,7 +82,7 @@ struct FullTextTabView: View {
     }
 
     private func copyAllText() {
-        let fullText = segments.map { "[\($0.formattedStartTime)] \($0.text)" }.joined(separator: "\n")
+        let fullText = groupedSegments.map { "[\($0.timestamp)]\n\($0.text)" }.joined(separator: "\n\n")
         UIPasteboard.general.string = fullText
         showCopiedToast = true
     }

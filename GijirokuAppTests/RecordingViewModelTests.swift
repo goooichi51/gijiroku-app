@@ -26,8 +26,24 @@ final class RecordingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.audioLevel, 0.0)
     }
 
-    func testInitialShowLiveTranscription() {
-        XCTAssertFalse(viewModel.showLiveTranscription)
+    func testInitialMeetingTitle() {
+        XCTAssertEqual(viewModel.meetingTitle, "")
+    }
+
+    func testInitialMeetingLocation() {
+        XCTAssertEqual(viewModel.meetingLocation, "")
+    }
+
+    func testInitialMeetingParticipants() {
+        XCTAssertTrue(viewModel.meetingParticipants.isEmpty)
+    }
+
+    func testInitialSecretNoteText() {
+        XCTAssertEqual(viewModel.secretNoteText, "")
+    }
+
+    func testInitialIsMinimalMode() {
+        XCTAssertFalse(viewModel.isMinimalMode)
     }
 
     func testInitialShowTimeWarning() {

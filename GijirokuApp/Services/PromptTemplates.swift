@@ -5,7 +5,7 @@ enum PromptTemplates {
         template: MeetingTemplate,
         metadata: MeetingMetadata
     ) -> String {
-        let base = """
+        var base = """
         あなたは議事録作成のプロフェッショナルです。
         以下の文字起こしテキストから、指定されたJSON形式で議事録を作成してください。
         日本語で、丁寧語（です・ます調）で記述してください。
@@ -16,7 +16,15 @@ enum PromptTemplates {
         - 日時: \(metadata.date)
         - 場所: \(metadata.location)
         - 参加者: \(metadata.participants.joined(separator: ", "))
+
+        重要な指示:
+        - 会議のタイトルを踏まえて、その主題に沿った要約を作成してください。
+        - 参加者名が提供されている場合、発言内容やアクションアイテムの担当者として積極的に使用してください。文字起こしで「私」「自分」などの不明確な表現があれば、文脈から参加者名に置き換えてください。
         """
+
+        if let notes = metadata.notes, !notes.isEmpty {
+            base += "\n\n    記録者のメモ（要約に反映してください）:\n    \(notes)"
+        }
 
         switch template {
         case .standard:
@@ -34,7 +42,7 @@ enum PromptTemplates {
         customTemplate: CustomTemplate,
         metadata: MeetingMetadata
     ) -> String {
-        let base = """
+        var base = """
         あなたは議事録作成のプロフェッショナルです。
         以下の文字起こしテキストから議事録を作成してください。
         日本語で、丁寧語（です・ます調）で記述してください。
@@ -45,8 +53,19 @@ enum PromptTemplates {
         - 場所: \(metadata.location)
         - 参加者: \(metadata.participants.joined(separator: ", "))
 
-        出力形式の指示:
-        \(customTemplate.promptFormat)
+        重要な指示:
+        - 会議のタイトルを踏まえて、その主題に沿った要約を作成してください。
+        - 参加者名が提供されている場合、発言内容やアクションアイテムの担当者として積極的に使用してください。文字起こしで「私」「自分」などの不明確な表現があれば、文脈から参加者名に置き換えてください。
+        """
+
+        if let notes = metadata.notes, !notes.isEmpty {
+            base += "\n\n    記録者のメモ（要約に反映してください）:\n    \(notes)"
+        }
+
+        base += """
+
+        \n    出力形式の指示:
+            \(customTemplate.promptFormat)
         """
         return base
     }
@@ -105,4 +124,5 @@ struct MeetingMetadata {
     let date: String
     let location: String
     let participants: [String]
+    var notes: String?
 }

@@ -42,7 +42,8 @@ class MeetingDetailViewModel: ObservableObject {
                 title: meeting.title,
                 date: meeting.formattedDate,
                 location: meeting.location,
-                participants: meeting.participants
+                participants: meeting.participants,
+                notes: meeting.notes
             )
             var customTemplate: CustomTemplate?
             if let customId = meeting.customTemplateId {
@@ -57,9 +58,12 @@ class MeetingDetailViewModel: ObservableObject {
             meeting.summary = summary
             meeting.status = .completed
         } catch {
-            summarizationError = error.localizedDescription
             if let summError = error as? SummarizationError {
+                summarizationError = summError.errorDescription
                 summarizationRecoverySuggestion = summError.recoverySuggestion
+            } else {
+                summarizationError = "AI要約に失敗しました"
+                summarizationRecoverySuggestion = "しばらくしてからもう一度お試しください。"
             }
         }
 

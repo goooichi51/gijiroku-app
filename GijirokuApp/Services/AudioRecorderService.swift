@@ -2,22 +2,34 @@ import AVFoundation
 import Combine
 
 @MainActor
-class AudioRecorderService: NSObject, ObservableObject {
+class AudioRecorderService: ObservableObject {
     @Published var isRecording = false
     @Published var isPaused = false
     @Published var recordingTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
 
-    private var audioRecorder: AVAudioRecorder?
+    private var audioEngine: AVAudioEngine?
+    private var audioFile: AVAudioFile?
     private var timer: Timer?
-    private var levelTimer: Timer?
     private var startTime: Date?
     private var pausedDuration: TimeInterval = 0
     private var pauseStartTime: Date?
 
+    // タップコールバックから書き込み制御（一時停止用）
+    private var isWritingEnabled = true
+    // タップコールバックから計算された音量レベル
+    private var currentLevel: Float = -160
+
+    /// 外部（LiveTranscriptionManager）へバッファを転送するコールバック
+    var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
+
+    /// 録音中のネイティブフォーマット（SpeechAnalyzerのフォーマット変換に使用）
+    var nativeFormat: AVAudioFormat? {
+        audioEngine?.inputNode.outputFormat(forBus: 0)
+    }
+
     deinit {
         timer?.invalidate()
-        levelTimer?.invalidate()
     }
 
     static let maxDuration: TimeInterval = 4 * 60 * 60 // 4時間
@@ -36,20 +48,11 @@ class AudioRecorderService: NSObject, ObservableObject {
     var onTimeWarning: (() -> Void)?
     var onMaxDurationReached: (() -> Void)?
 
-    // 録音設定（16kHz/1ch/PCM）
-    private let recordingSettings: [String: Any] = [
-        AVFormatIDKey: Int(kAudioFormatLinearPCM),
-        AVSampleRateKey: 16000.0,
-        AVNumberOfChannelsKey: 1,
-        AVLinearPCMBitDepthKey: 16,
-        AVLinearPCMIsBigEndianKey: false,
-        AVLinearPCMIsFloatKey: false
-    ]
-
     func requestMicrophonePermission() async -> Bool {
         await AVAudioApplication.requestRecordPermission()
     }
 
+    /// 録音を開始（ハードウェアのネイティブフォーマットを使用）
     func startRecording() throws -> URL {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
@@ -57,46 +60,69 @@ class AudioRecorderService: NSObject, ObservableObject {
 
         let url = AudioFileManager.shared.generateRecordingURL()
 
-        audioRecorder = try AVAudioRecorder(url: url, settings: recordingSettings)
-        audioRecorder?.isMeteringEnabled = true
-        audioRecorder?.delegate = self
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let nativeFormat = inputNode.outputFormat(forBus: 0)
 
-        guard audioRecorder?.record() == true else {
+        guard nativeFormat.channelCount > 0 else {
             throw RecordingError.failedToStart
         }
+
+        audioFile = try AVAudioFile(forWriting: url, settings: nativeFormat.settings)
+        isWritingEnabled = true
+
+        // format: nil で最大互換性（実機でのクラッシュを防止）
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
+            guard let self else { return }
+            // ファイルへ書き込み（一時停止中はスキップ）
+            if self.isWritingEnabled {
+                try? self.audioFile?.write(from: buffer)
+            }
+            // 音量レベル計算
+            self.calculateLevel(from: buffer)
+            // リアルタイム文字起こしへ転送
+            self.onAudioBuffer?(buffer)
+        }
+
+        try engine.start()
+        audioEngine = engine
 
         isRecording = true
         isPaused = false
         startTime = Date()
         pausedDuration = 0
-        startTimers()
+        startTimer()
 
         return url
     }
 
     func pauseRecording() {
         guard isRecording, !isPaused else { return }
-        audioRecorder?.pause()
+        isWritingEnabled = false
         isPaused = true
         pauseStartTime = Date()
-        stopLevelTimer()
     }
 
     func resumeRecording() {
         guard isRecording, isPaused else { return }
-        audioRecorder?.record()
+        isWritingEnabled = true
         isPaused = false
         if let pauseStart = pauseStartTime {
             pausedDuration += Date().timeIntervalSince(pauseStart)
         }
         pauseStartTime = nil
-        startLevelTimer()
     }
 
     func stopRecording() -> URL? {
-        let url = audioRecorder?.url
-        audioRecorder?.stop()
-        stopTimers()
+        let url = audioFile?.url
+
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine?.stop()
+        audioEngine = nil
+        audioFile = nil
+        onAudioBuffer = nil
+
+        stopTimer()
 
         isRecording = false
         isPaused = false
@@ -113,11 +139,16 @@ class AudioRecorderService: NSObject, ObservableObject {
     }
 
     func cancelRecording() {
-        let url = audioRecorder?.url
-        audioRecorder?.stop()
-        stopTimers()
+        let url = audioFile?.url
 
-        // 録音ファイルを削除
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine?.stop()
+        audioEngine = nil
+        audioFile = nil
+        onAudioBuffer = nil
+
+        stopTimer()
+
         if let url = url {
             AudioFileManager.shared.deleteFile(at: url)
         }
@@ -128,20 +159,36 @@ class AudioRecorderService: NSObject, ObservableObject {
         audioLevel = 0
     }
 
-    // MARK: - Timer Management
+    // MARK: - Audio Level
 
-    private func startTimers() {
-        startRecordingTimer()
-        startLevelTimer()
+    private func calculateLevel(from buffer: AVAudioPCMBuffer) {
+        let frames = Int(buffer.frameLength)
+        guard frames > 0 else { return }
+
+        var sum: Float = 0
+
+        if let channelData = buffer.floatChannelData?[0] {
+            for i in 0..<frames {
+                let sample = channelData[i]
+                sum += sample * sample
+            }
+        } else if let channelData = buffer.int16ChannelData?[0] {
+            for i in 0..<frames {
+                let sample = Float(channelData[i]) / Float(Int16.max)
+                sum += sample * sample
+            }
+        } else {
+            return
+        }
+
+        let rms = sqrt(sum / Float(frames))
+        let db = 20 * log10(max(rms, 1e-6))
+        currentLevel = db
     }
 
-    private func stopTimers() {
-        timer?.invalidate()
-        timer = nil
-        stopLevelTimer()
-    }
+    // MARK: - Timer
 
-    private func startRecordingTimer() {
+    private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateRecordingTime()
@@ -149,17 +196,9 @@ class AudioRecorderService: NSObject, ObservableObject {
         }
     }
 
-    private func startLevelTimer() {
-        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateAudioLevel()
-            }
-        }
-    }
-
-    private func stopLevelTimer() {
-        levelTimer?.invalidate()
-        levelTimer = nil
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 
     private func updateRecordingTime() {
@@ -174,6 +213,11 @@ class AudioRecorderService: NSObject, ObservableObject {
 
         recordingTime = Date().timeIntervalSince(startTime) - currentPauseDuration
 
+        // 音量レベルを更新
+        let level = currentLevel
+        let normalizedLevel = max(0, (level + 50) / 50)
+        audioLevel = normalizedLevel
+
         // 残り10分で警告
         if recordingTime >= warningThreshold && recordingTime < warningThreshold + 0.2 {
             onTimeWarning?()
@@ -185,29 +229,11 @@ class AudioRecorderService: NSObject, ObservableObject {
         }
     }
 
-    private func updateAudioLevel() {
-        audioRecorder?.updateMeters()
-        let level = audioRecorder?.averagePower(forChannel: 0) ?? -160
-        // -160dB ~ 0dB を 0.0 ~ 1.0 に正規化
-        let normalizedLevel = max(0, (level + 50) / 50)
-        audioLevel = normalizedLevel
-    }
-
     var formattedTime: String {
         let hours = Int(recordingTime) / 3600
         let minutes = (Int(recordingTime) % 3600) / 60
         let seconds = Int(recordingTime) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-}
-
-// MARK: - AVAudioRecorderDelegate
-
-extension AudioRecorderService: AVAudioRecorderDelegate {
-    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        if !flag {
-            AppLogger.recording.error("録音が異常終了しました")
-        }
     }
 }
 

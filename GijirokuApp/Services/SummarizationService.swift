@@ -40,6 +40,11 @@ class SummarizationService: ObservableObject {
             transcription: transcription
         )
 
+        // 文字起こしが空の場合はエラー
+        guard !transcription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw SummarizationError.emptyTranscription
+        }
+
         var lastError: Error?
         for attempt in 0...maxRetries {
             do {
@@ -61,7 +66,8 @@ class SummarizationService: ObservableObject {
             }
         }
 
-        throw lastError ?? SummarizationError.serverError
+        // Supabase SDKの英語エラーを日本語に変換
+        throw mapToLocalizedError(lastError)
     }
 
     private func parseSummary(_ jsonString: String, template: MeetingTemplate) -> MeetingSummary {
@@ -100,6 +106,21 @@ class SummarizationService: ObservableObject {
         }
 
         return summary
+    }
+
+    private func mapToLocalizedError(_ error: Error?) -> SummarizationError {
+        guard let error else { return .serverError }
+        let message = error.localizedDescription
+        if message.contains("400") {
+            return .badRequest
+        } else if message.contains("401") || message.contains("403") {
+            return .notAuthenticated
+        } else if message.contains("429") {
+            return .rateLimited
+        } else if message.contains("500") || message.contains("502") || message.contains("503") {
+            return .serverError
+        }
+        return .serverError
     }
 
     private func parseActionItems(_ value: Any?) -> [ActionItem]? {
@@ -146,6 +167,9 @@ enum SummarizationError: LocalizedError {
     case parseError
     case notAuthenticated
     case networkError(String)
+    case badRequest
+    case rateLimited
+    case emptyTranscription
 
     var errorDescription: String? {
         switch self {
@@ -157,8 +181,14 @@ enum SummarizationError: LocalizedError {
             return "AI要約の結果を解析できませんでした"
         case .notAuthenticated:
             return "ログインが必要です"
-        case .networkError(let detail):
-            return detail
+        case .networkError:
+            return "ネットワークエラーが発生しました"
+        case .badRequest:
+            return "AI要約のリクエストに失敗しました"
+        case .rateLimited:
+            return "リクエスト回数の上限に達しました"
+        case .emptyTranscription:
+            return "文字起こしデータがないため要約できません"
         }
     }
 
@@ -174,6 +204,12 @@ enum SummarizationError: LocalizedError {
             return "設定画面からログインしてください。"
         case .networkError:
             return "しばらくしてからもう一度お試しください。"
+        case .badRequest:
+            return "文字起こしデータが正しく送信されませんでした。再度録音してお試しください。"
+        case .rateLimited:
+            return "しばらくしてからもう一度お試しください。"
+        case .emptyTranscription:
+            return "録音してから再度お試しください。"
         }
     }
 }

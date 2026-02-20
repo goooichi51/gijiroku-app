@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import Speech
 import UserNotifications
 
 @MainActor
@@ -15,13 +17,21 @@ class RecordingViewModel: ObservableObject {
     @Published var showTimeWarning = false
     @Published var showDiscardAlert = false
     @Published var errorMessage: String?
-    @Published var showLiveTranscription = false
+    @Published var showSpeechPermissionAlert = false
+    @Published var isMinimalMode = false
+
+    // 録音中に入力する会議情報
+    @Published var meetingTitle = ""
+    @Published var meetingLocation = ""
+    @Published var meetingParticipants: [String] = []
+
+    // シークレットモード用メモ
+    @Published var secretNoteText = ""
 
     var isRecording: Bool { state != .idle }
     var isPaused: Bool { state == .paused }
 
     let recorderService = AudioRecorderService()
-    let liveTranscription = LiveTranscriptionManager()
     private var recordingURL: URL?
     private var backgroundObserver: Any?
     private var foregroundObserver: Any?
@@ -30,7 +40,7 @@ class RecordingViewModel: ObservableObject {
         recorderService.formattedTime
     }
 
-    var onRecordingComplete: ((URL, TimeInterval) -> Void)?
+    var onRecordingComplete: ((URL, TimeInterval, String, String, [String], String?) -> Void)?
 
     init() {
         setupBindings()
@@ -92,25 +102,35 @@ class RecordingViewModel: ObservableObject {
             return
         }
 
+        // 音声認識の権限を確認・リクエスト（文字起こしに必須）
+        let speechStatus = SFSpeechRecognizer.authorizationStatus()
+        if speechStatus == .notDetermined {
+            let authorized = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { status in
+                    continuation.resume(returning: status == .authorized)
+                }
+            }
+            if !authorized {
+                showSpeechPermissionAlert = true
+                return
+            }
+        } else if speechStatus != .authorized {
+            showSpeechPermissionAlert = true
+            return
+        }
+
         // バックグラウンド通知の許可をリクエスト
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
 
         do {
             recordingURL = try recorderService.startRecording()
             state = .recording
-
             startObserving()
-
-            // リアルタイム文字起こしを開始
-            await startLiveTranscription()
+        } catch let error as RecordingError {
+            errorMessage = error.errorDescription
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "録音の開始に失敗しました"
         }
-    }
-
-    private func startLiveTranscription() async {
-        showLiveTranscription = true
-        await liveTranscription.start()
     }
 
     func togglePause() {
@@ -124,14 +144,13 @@ class RecordingViewModel: ObservableObject {
 
     func stopRecording() {
         let duration = recorderService.recordingTime
-        liveTranscription.stop()
-
         guard let url = recorderService.stopRecording() else { return }
 
         state = .idle
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
         PlanManager.shared.recordMeetingUsage()
-        onRecordingComplete?(url, duration)
+        let notes = secretNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : secretNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+        onRecordingComplete?(url, duration, meetingTitle, meetingLocation, meetingParticipants, notes)
     }
 
     func requestDiscard() {
@@ -139,7 +158,6 @@ class RecordingViewModel: ObservableObject {
     }
 
     func confirmDiscard() {
-        liveTranscription.stop()
         recorderService.cancelRecording()
         state = .idle
         recordingURL = nil

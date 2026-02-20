@@ -5,10 +5,14 @@ struct MeetingCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: MeetingCreationViewModel
 
-    init(audioFileURL: URL, audioDuration: TimeInterval) {
+    init(audioFileURL: URL, audioDuration: TimeInterval, initialTitle: String = "", initialLocation: String = "", initialParticipants: [String] = [], initialNotes: String? = nil) {
         _viewModel = StateObject(wrappedValue: MeetingCreationViewModel(
             audioFileURL: audioFileURL,
-            audioDuration: audioDuration
+            audioDuration: audioDuration,
+            initialTitle: initialTitle,
+            initialLocation: initialLocation,
+            initialParticipants: initialParticipants,
+            initialNotes: initialNotes
         ))
     }
 
@@ -29,24 +33,8 @@ struct MeetingCreationView: View {
                     participants: $viewModel.participants
                 )
 
-                // 文字起こし進捗
-                if viewModel.isTranscribing {
-                    TranscriptionProgressView(
-                        progress: viewModel.transcriptionProgress,
-                        statusText: "処理中..."
-                    )
-                } else if viewModel.transcriptionText != nil {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("文字起こし完了")
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
-                }
+                // 文字起こし・要約の進捗
+                progressSection
 
                 // AI要約プラン制限表示
                 if viewModel.hasTranscription && !PlanManager.shared.canUseSummarization {
@@ -63,29 +51,32 @@ struct MeetingCreationView: View {
                     .cornerRadius(12)
                 }
 
-                // 議事録保存/生成ボタン
+                // 議事録保存ボタン
                 Button {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     saveMeeting()
                 } label: {
                     HStack {
-                        if viewModel.isTranscribing {
+                        if viewModel.isProcessing {
                             ProgressView()
                                 .tint(.white)
                                 .controlSize(.small)
-                            Text("文字起こし中...")
+                            Text(viewModel.isSummarizing ? "AI要約中..." : "文字起こし中...")
+                        } else if viewModel.summaryResult != nil {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("議事録を保存")
                         } else {
-                            Image(systemName: viewModel.canGenerateSummary ? "wand.and.stars" : "doc.badge.plus")
-                            Text(viewModel.canGenerateSummary ? "AI議事録を生成" : "議事録を保存")
+                            Image(systemName: "doc.badge.plus")
+                            Text("議事録を保存")
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(viewModel.isTranscribing ? Color.gray : Color.blue)
+                    .background(viewModel.isProcessing ? Color.gray : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(12)
                 }
-                .disabled(viewModel.isTranscribing)
+                .disabled(viewModel.isProcessing)
 
                 // 文字起こし全文確認リンク
                 if let segments = viewModel.transcriptionSegments, !segments.isEmpty {
@@ -121,6 +112,55 @@ struct MeetingCreationView: View {
         }
         .task {
             await viewModel.startTranscription()
+        }
+    }
+
+    @ViewBuilder
+    private var progressSection: some View {
+        if viewModel.isTranscribing {
+            TranscriptionProgressView(
+                progress: viewModel.transcriptionProgress,
+                statusText: "処理中..."
+            )
+        } else if viewModel.isSummarizing {
+            HStack {
+                ProgressView()
+                    .controlSize(.small)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI議事録を生成中...")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("文字起こし完了 → AI要約を自動実行しています")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.purple.opacity(0.1))
+            .cornerRadius(12)
+        } else if viewModel.summaryResult != nil {
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Text("文字起こし・AI要約完了")
+                    .font(.subheadline)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(12)
+        } else if viewModel.transcriptionText != nil {
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Text("文字起こし完了")
+                    .font(.subheadline)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(12)
         }
     }
 

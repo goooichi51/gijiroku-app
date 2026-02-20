@@ -1,6 +1,8 @@
 import Foundation
 
 enum Secrets {
+    static let supabaseProjectId = "mbhcyaocfngegssvtdgl"
+
     static var supabaseURL: String {
         guard let url = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String, !url.isEmpty else {
             // 開発時のフォールバック

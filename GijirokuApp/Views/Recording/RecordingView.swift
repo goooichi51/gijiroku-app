@@ -4,96 +4,42 @@ struct RecordingView: View {
     @StateObject private var viewModel = RecordingViewModel()
     @Environment(\.dismiss) private var dismiss
 
-    var onComplete: ((URL, TimeInterval) -> Void)?
+    var onComplete: ((URL, TimeInterval, String, String, [String], String?) -> Void)?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // 経過時間
-                Text(viewModel.formattedTime)
-                    .font(.system(size: 48, weight: .light, design: .monospaced))
-                    .padding(.top, 40)
-                    .accessibilityLabel("録音時間 \(viewModel.formattedTime)")
-
-                if viewModel.isPaused {
-                    Text("一時停止中")
-                        .foregroundColor(.orange)
-                        .font(.subheadline)
-                        .padding(.top, 4)
-                }
-
-                // 波形表示
-                AudioWaveformView(level: viewModel.audioLevel)
-                    .frame(height: 80)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .accessibilityHidden(true)
-
-                // リアルタイム文字起こしプレビュー
-                if viewModel.showLiveTranscription {
-                    liveTranscriptionView
+            Group {
+                if viewModel.isMinimalMode {
+                    secretModeView
                 } else {
-                    Spacer()
+                    normalModeView
                 }
-
-                // 残り10分警告
-                if viewModel.showTimeWarning {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("残り10分で自動停止します")
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                }
-
-                // 操作ボタン
-                HStack(spacing: 60) {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        viewModel.togglePause()
-                    } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill")
-                                .font(.system(size: 56))
-                                .foregroundColor(.primary)
-                            Text(viewModel.isPaused ? "再開" : "一時停止")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .accessibilityLabel(viewModel.isPaused ? "録音を再開" : "録音を一時停止")
-
-                    Button {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        viewModel.stopRecording()
-                    } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: "stop.circle.fill")
-                                .font(.system(size: 56))
-                                .foregroundColor(.red)
-                            Text("停止")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .accessibilityLabel("録音を停止して保存")
-                }
-                .padding(.bottom, 40)
             }
-            .navigationTitle("録音中")
+            .navigationTitle(viewModel.isMinimalMode ? "Memo" : "録音中")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
+                    if !viewModel.isMinimalMode {
+                        Button {
+                            viewModel.requestDiscard()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        viewModel.requestDiscard()
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            viewModel.isMinimalMode.toggle()
+                        }
                     } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: viewModel.isMinimalMode
+                              ? "arrow.up.left.and.arrow.down.right"
+                              : "arrow.down.right.and.arrow.up.left")
                             .foregroundColor(.primary)
                     }
+                    .accessibilityLabel(viewModel.isMinimalMode ? "通常表示に戻す" : "シンプル表示に切替")
                 }
             }
             .alert("録音を破棄しますか？", isPresented: $viewModel.showDiscardAlert) {
@@ -104,6 +50,19 @@ struct RecordingView: View {
                 Button("キャンセル", role: .cancel) {}
             } message: {
                 Text("この録音データは削除され、復元できません。")
+            }
+            .alert("音声認識の許可が必要です", isPresented: $viewModel.showSpeechPermissionAlert) {
+                Button("設定を開く") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    dismiss()
+                }
+                Button("キャンセル", role: .cancel) {
+                    dismiss()
+                }
+            } message: {
+                Text("このアプリは音声認識を使って文字起こしを行います。設定アプリから「音声認識」を許可してください。")
             }
             .alert("エラー", isPresented: .init(
                 get: { viewModel.errorMessage != nil },
@@ -119,8 +78,8 @@ struct RecordingView: View {
                 await viewModel.startRecording()
             }
             .onAppear {
-                viewModel.onRecordingComplete = { [weak viewModel] url, duration in
-                    onComplete?(url, duration)
+                viewModel.onRecordingComplete = { [weak viewModel] url, duration, title, location, participants, notes in
+                    onComplete?(url, duration, title, location, participants, notes)
                     guard viewModel != nil else { return }
                     dismiss()
                 }
@@ -128,47 +87,172 @@ struct RecordingView: View {
         }
     }
 
-    private var liveTranscriptionView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "text.bubble")
-                    .foregroundColor(.accentColor)
-                Text("リアルタイム文字起こし")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                if viewModel.liveTranscription.liveText.isEmpty {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                    Text("音声を認識中...")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.horizontal)
+    // MARK: - 通常モード（会議情報入力 + 録音コントロール）
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    Text(viewModel.liveTranscription.liveText.isEmpty
-                         ? "録音中の音声をリアルタイムで文字起こしします..."
-                         : viewModel.liveTranscription.liveText)
-                        .font(.subheadline)
-                        .foregroundColor(viewModel.liveTranscription.liveText.isEmpty ? .secondary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .id("transcriptionBottom")
-                }
-                .onChange(of: viewModel.liveTranscription.liveText) {
-                    withAnimation {
-                        proxy.scrollTo("transcriptionBottom", anchor: .bottom)
+    private var normalModeView: some View {
+        VStack(spacing: 0) {
+            // 録音ヘッダー（タイマー + 波形）
+            recordingHeader
+
+            // 会議情報入力フォーム
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // ステータスバッジ
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(viewModel.isPaused ? Color.orange : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(viewModel.isPaused ? "一時停止中" : "録音中")
+                            .font(.caption)
+                            .foregroundColor(viewModel.isPaused ? .orange : .red)
+                        Text("・終了後にAI文字起こし・要約を生成")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 12)
+
+                    // タイトル
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("タイトル")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("会議のタイトル", text: $viewModel.meetingTitle)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    // 場所
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("場所")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("場所", text: $viewModel.meetingLocation)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    // 参加者
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("参加者")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        ParticipantTagView(participants: $viewModel.meetingParticipants)
                     }
                 }
+                .padding(.horizontal)
             }
+
+            // 残り10分警告
+            if viewModel.showTimeWarning {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text("残り10分で自動停止します")
+                        .font(.subheadline)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(10)
+                .padding(.horizontal)
+            }
+
+            // 操作ボタン
+            HStack(spacing: 60) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    viewModel.togglePause()
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill")
+                            .font(.system(size: 56))
+                            .foregroundColor(.primary)
+                        Text(viewModel.isPaused ? "再開" : "一時停止")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .accessibilityLabel(viewModel.isPaused ? "録音を再開" : "録音を一時停止")
+
+                Button {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    viewModel.stopRecording()
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.system(size: 56))
+                            .foregroundColor(.red)
+                        Text("停止")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .accessibilityLabel("録音を停止して保存")
+            }
+            .padding(.vertical, 20)
         }
-        .frame(maxHeight: 200)
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .padding(.horizontal)
-        .padding(.top, 16)
+    }
+
+    // MARK: - 録音ヘッダー
+
+    private var recordingHeader: some View {
+        VStack(spacing: 0) {
+            Text(viewModel.formattedTime)
+                .font(.system(size: 40, weight: .light, design: .monospaced))
+                .padding(.top, 16)
+                .accessibilityLabel("録音時間 \(viewModel.formattedTime)")
+
+            AudioWaveformView(level: viewModel.audioLevel)
+                .frame(height: 50)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .accessibilityHidden(true)
+        }
+        .padding(.bottom, 8)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    // MARK: - シークレットモード（メモ帳風）
+
+    private var secretModeView: some View {
+        VStack(spacing: 0) {
+            // メモ帳風テキストエディタ
+            TextEditor(text: $viewModel.secretNoteText)
+                .font(.body)
+                .padding(.horizontal, 4)
+                .scrollContentBackground(.hidden)
+                .background(Color(.systemBackground))
+                .overlay(alignment: .topLeading) {
+                    if viewModel.secretNoteText.isEmpty {
+                        Text("メモを入力...")
+                            .font(.body)
+                            .foregroundColor(.secondary.opacity(0.5))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                }
+
+            Divider()
+
+            // 下部バー（完了ボタンのみ・自然な見た目）
+            HStack {
+                // バックグラウンドで動作するテキスト（目立たない）
+                Text("バックグラウンドでも動作します")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.4))
+
+                Spacer()
+
+                Button {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    viewModel.stopRecording()
+                } label: {
+                    Text("完了")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color(.systemGroupedBackground))
+        }
     }
 }

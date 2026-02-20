@@ -16,6 +16,10 @@ class PlanManager: ObservableObject {
     private let maxFreeRecordingDuration: TimeInterval = 30 * 60 // 30分
 
     private init() {
+        if let saved = UserDefaults.standard.string(forKey: "currentPlan"),
+           let plan = SubscriptionPlan(rawValue: saved) {
+            currentPlan = plan
+        }
         loadUsageData()
     }
 

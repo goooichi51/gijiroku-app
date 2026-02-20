@@ -92,6 +92,7 @@ struct SummaryTabView: View {
                 }
                 .font(.subheadline)
             }
+
         }
     }
 

@@ -7,6 +7,9 @@ struct SettingsView: View {
     @State private var isSyncing = false
     @State private var showDeleteRecordingsAlert = false
     @State private var showLogoutAlert = false
+    @State private var showDeleteAccountAlert = false
+    @State private var isDeletingAccount = false
+    @AppStorage("syncTranscriptionToCloud") private var syncTranscriptionToCloud = false
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
@@ -86,6 +89,15 @@ struct SettingsView: View {
             }
 
             Section("データ") {
+                Toggle(isOn: $syncTranscriptionToCloud) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("文字起こし・要約をクラウドに保存")
+                        Text("OFFの場合、端末変更時にテキストデータは引き継がれません")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 Button {
                     isSyncing = true
                     Task {
@@ -171,6 +183,36 @@ struct SettingsView: View {
                     showLogoutAlert = true
                 }
             }
+
+            #if DEBUG
+            Section("デバッグ") {
+                Picker("テストプラン", selection: Binding(
+                    get: { planManager.currentPlan },
+                    set: { planManager.upgradeToPlan($0) }
+                )) {
+                    Text("Free").tag(SubscriptionPlan.free)
+                    Text("Standard").tag(SubscriptionPlan.standard)
+                }
+                .pickerStyle(.segmented)
+            }
+            #endif
+
+            Section {
+                Button(role: .destructive) {
+                    showDeleteAccountAlert = true
+                } label: {
+                    HStack {
+                        if isDeletingAccount {
+                            ProgressView()
+                                .padding(.trailing, 4)
+                        }
+                        Text("アカウントを削除")
+                    }
+                }
+                .disabled(isDeletingAccount)
+            } footer: {
+                Text("アカウントと関連するすべてのデータが完全に削除されます。この操作は取り消せません。")
+            }
         }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
@@ -181,6 +223,18 @@ struct SettingsView: View {
             Button("キャンセル", role: .cancel) {}
         } message: {
             Text("ローカルに保存されたデータは残りますが、クラウド同期には再ログインが必要です。")
+        }
+        .alert("アカウントを削除しますか？", isPresented: $showDeleteAccountAlert) {
+            Button("削除する", role: .destructive) {
+                isDeletingAccount = true
+                Task {
+                    await authService.deleteAccount()
+                    isDeletingAccount = false
+                }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("アカウントと関連するすべてのデータが完全に削除されます。この操作は取り消すことができません。")
         }
         .alert("録音ファイルを削除しますか？", isPresented: $showDeleteRecordingsAlert) {
             Button("削除", role: .destructive) {

@@ -17,13 +17,14 @@ struct MeetingRecord: Codable {
     let transcriptionSegmentsJson: String?
     let summaryRawText: String?
     let summaryJson: String?
+    let notes: String?
     let createdAt: Date
     let updatedAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
-        case title, date, location, participants, template, status
+        case title, date, location, participants, template, status, notes
         case audioDuration = "audio_duration"
         case customTemplateId = "custom_template_id"
         case transcriptionText = "transcription_text"
@@ -180,6 +181,8 @@ class SyncService: ObservableObject {
             segmentsJson = String(data: data, encoding: .utf8)
         }
 
+        let syncText = UserDefaults.standard.bool(forKey: "syncTranscriptionToCloud")
+
         return MeetingRecord(
             id: meeting.id,
             userId: userId,
@@ -190,11 +193,12 @@ class SyncService: ObservableObject {
             template: meeting.template.rawValue,
             status: meeting.status.rawValue,
             audioDuration: meeting.audioDuration,
-            transcriptionText: meeting.transcriptionText,
+            transcriptionText: syncText ? meeting.transcriptionText : nil,
             customTemplateId: meeting.customTemplateId,
-            transcriptionSegmentsJson: segmentsJson,
-            summaryRawText: meeting.summary?.rawText,
-            summaryJson: summaryJson,
+            transcriptionSegmentsJson: syncText ? segmentsJson : nil,
+            summaryRawText: syncText ? meeting.summary?.rawText : nil,
+            summaryJson: syncText ? summaryJson : nil,
+            notes: meeting.notes,
             createdAt: meeting.createdAt,
             updatedAt: meeting.updatedAt
         )
@@ -231,6 +235,7 @@ class SyncService: ObservableObject {
             transcriptionText: record.transcriptionText,
             transcriptionSegments: segments,
             summary: summary,
+            notes: record.notes,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt
         )

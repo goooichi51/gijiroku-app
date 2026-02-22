@@ -51,7 +51,7 @@
 - 1回30分まで
 - 文字起こし機能
 
-■ Standardプラン（月額480円）
+■ Standardプラン（月額490円）
 - 録音回数・時間 無制限（最大4時間）
 - AI議事録自動生成
 - 全テンプレート利用可能
@@ -77,21 +77,18 @@ Apple IDの「サブスクリプション」設定から管理・解約できま
 
 - **商品名**: Standard（月額）
 - **Product ID**: com.gijiroku.app.standard.monthly
-- **価格**: ¥480/月
+- **価格**: ¥490/月
 - **グループ名**: standard
 - **説明**: AI議事録・PDF出力・全テンプレート・無制限録音
 
 ## URL情報
 
-| 用途 | URL | ファイル |
-|------|-----|---------|
-| プライバシーポリシー | （GitHub Pages等でホスト） | `docs/legal/privacy-policy.html` |
-| 利用規約 | （GitHub Pages等でホスト） | `docs/legal/terms-of-service.html` |
-| サポート | （GitHub Pages等でホスト） | `docs/legal/support.html` |
-| サポートメール | gijiroku.app.support@gmail.com | — |
-
-> **ホスティング手順**: GitHub Pagesで `docs/legal/` を公開するか、Netlify/Vercel等にデプロイしてURLを取得。
-> App Store Connect の「App情報」→「プライバシーポリシーURL」「サポートURL」に設定。
+| 用途 | URL |
+|------|-----|
+| プライバシーポリシー | https://goooichi51.github.io/gijiroku-app/legal/privacy-policy.html |
+| 利用規約 | https://goooichi51.github.io/gijiroku-app/legal/terms-of-service.html |
+| サポート | https://goooichi51.github.io/gijiroku-app/legal/support.html |
+| サポートメール | gijiroku.app.sup@gmail.com |
 
 ## レビュー申請時の注意事項
 
@@ -99,3 +96,7 @@ Apple IDの「サブスクリプション」設定から管理・解約できま
 - マイク権限が必要（シミュレータではダミーデータ使用）
 - 音声認識権限の許可が必要
 - Edge Function（AI要約）はSupabase上で稼働中
+
+## 既知の制約・注意点
+
+- **iOS 26以上が必須**: Apple SpeechAnalyzerはiOS 26で導入されたAPIのため、テストユーザーがOSをアップデートしていない場合はアプリを利用できない。テスターには事前にiOS 26以上へのアップデートを案内すること。

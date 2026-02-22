@@ -95,7 +95,7 @@ struct PrivacyPolicyView: View {
                         "本ポリシーは必要に応じて変更することがあります。重要な変更がある場合は、アプリ内通知またはアプリのアップデート時にお知らせします。")
 
                 section("9. お問い合わせ",
-                        "プライバシーに関するお問い合わせは以下までご連絡ください。\n\nメール: gijiroku.app.support@gmail.com")
+                        "プライバシーに関するお問い合わせは以下までご連絡ください。\n\nメール: gijiroku.app.sup@gmail.com")
             }
             .padding()
         }
@@ -152,7 +152,7 @@ struct TermsOfServiceView: View {
 
                 section("第3条（料金プラン・サブスクリプション）",
                         """
-                        1. 本アプリは無料プラン（Free）と有料プラン（Standard: 月額480円）を提供します。
+                        1. 本アプリは無料プラン（Free）と有料プラン（Standard: 月額490円）を提供します。
                         2. 有料プランの課金はApple IDを通じてApp Store決済で行われます。
                         3. サブスクリプションは現在の期間終了日の少なくとも24時間前までにキャンセルされない限り、自動的に更新されます。
                         4. サブスクリプションの管理・解約は、iPhoneの「設定」→ Apple ID →「サブスクリプション」から行えます。
@@ -221,7 +221,7 @@ struct TermsOfServiceView: View {
                         """)
 
                 section("お問い合わせ",
-                        "本規約に関するお問い合わせは以下までご連絡ください。\n\nメール: gijiroku.app.support@gmail.com")
+                        "本規約に関するお問い合わせは以下までご連絡ください。\n\nメール: gijiroku.app.sup@gmail.com")
             }
             .padding()
         }

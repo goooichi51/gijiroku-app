@@ -167,22 +167,7 @@ class SyncService: ObservableObject {
     }
 
     private func meetingToRecord(_ meeting: Meeting, userId: UUID) -> MeetingRecord {
-        let encoder = JSONEncoder()
-
-        var summaryJson: String?
-        if let summary = meeting.summary,
-           let data = try? encoder.encode(summary) {
-            summaryJson = String(data: data, encoding: .utf8)
-        }
-
-        var segmentsJson: String?
-        if let segments = meeting.transcriptionSegments,
-           let data = try? encoder.encode(segments) {
-            segmentsJson = String(data: data, encoding: .utf8)
-        }
-
-        let syncText = UserDefaults.standard.bool(forKey: "syncTranscriptionToCloud")
-
+        // 文字起こし・要約データはローカルのみ保存（サーバーには送信しない）
         return MeetingRecord(
             id: meeting.id,
             userId: userId,
@@ -193,11 +178,11 @@ class SyncService: ObservableObject {
             template: meeting.template.rawValue,
             status: meeting.status.rawValue,
             audioDuration: meeting.audioDuration,
-            transcriptionText: syncText ? meeting.transcriptionText : nil,
+            transcriptionText: nil,
             customTemplateId: meeting.customTemplateId,
-            transcriptionSegmentsJson: syncText ? segmentsJson : nil,
-            summaryRawText: syncText ? meeting.summary?.rawText : nil,
-            summaryJson: syncText ? summaryJson : nil,
+            transcriptionSegmentsJson: nil,
+            summaryRawText: nil,
+            summaryJson: nil,
             notes: meeting.notes,
             createdAt: meeting.createdAt,
             updatedAt: meeting.updatedAt

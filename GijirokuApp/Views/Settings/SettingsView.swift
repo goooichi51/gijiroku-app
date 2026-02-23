@@ -9,7 +9,6 @@ struct SettingsView: View {
     @State private var showLogoutAlert = false
     @State private var showDeleteAccountAlert = false
     @State private var isDeletingAccount = false
-    @AppStorage("syncTranscriptionToCloud") private var syncTranscriptionToCloud = false
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
@@ -89,15 +88,6 @@ struct SettingsView: View {
             }
 
             Section("データ") {
-                Toggle(isOn: $syncTranscriptionToCloud) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("文字起こし・要約をクラウドに保存")
-                        Text("OFFの場合、端末変更時にテキストデータは引き継がれません")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
                 Button {
                     isSyncing = true
                     Task {

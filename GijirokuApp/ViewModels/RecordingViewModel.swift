@@ -24,6 +24,8 @@ class RecordingViewModel: ObservableObject {
     @Published var meetingTitle = ""
     @Published var meetingLocation = ""
     @Published var meetingParticipants: [String] = []
+    @Published var selectedTemplate: MeetingTemplate = .standard
+    @Published var selectedCustomTemplateId: UUID?
 
     // シークレットモード用メモ
     @Published var secretNoteText = ""
@@ -40,7 +42,7 @@ class RecordingViewModel: ObservableObject {
         recorderService.formattedTime
     }
 
-    var onRecordingComplete: ((URL, TimeInterval, String, String, [String], String?) -> Void)?
+    var onRecordingComplete: ((URL, TimeInterval, String, String, [String], String?, MeetingTemplate, UUID?) -> Void)?
 
     init() {
         setupBindings()
@@ -150,7 +152,7 @@ class RecordingViewModel: ObservableObject {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["recording_background"])
         PlanManager.shared.recordMeetingUsage()
         let notes = secretNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : secretNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
-        onRecordingComplete?(url, duration, meetingTitle, meetingLocation, meetingParticipants, notes)
+        onRecordingComplete?(url, duration, meetingTitle, meetingLocation, meetingParticipants, notes, selectedTemplate, selectedCustomTemplateId)
     }
 
     func requestDiscard() {

@@ -12,6 +12,8 @@ struct MainTabView: View {
     @State private var recordedLocation = ""
     @State private var recordedParticipants: [String] = []
     @State private var recordedNotes: String?
+    @State private var recordedTemplate: MeetingTemplate = .standard
+    @State private var recordedCustomTemplateId: UUID?
     @State private var showUpgradeAlert = false
     @ObservedObject private var planManager = PlanManager.shared
 
@@ -30,13 +32,15 @@ struct MainTabView: View {
                 .tag(1)
         }
         .fullScreenCover(isPresented: $showRecording) {
-            RecordingView { url, duration, title, location, participants, notes in
+            RecordingView { url, duration, title, location, participants, notes, template, customTemplateId in
                 recordedAudioURL = url
                 recordedDuration = duration
                 recordedTitle = title
                 recordedLocation = location
                 recordedParticipants = participants
                 recordedNotes = notes
+                recordedTemplate = template
+                recordedCustomTemplateId = customTemplateId
                 showMeetingCreation = true
             }
         }
@@ -49,7 +53,9 @@ struct MainTabView: View {
                         initialTitle: recordedTitle,
                         initialLocation: recordedLocation,
                         initialParticipants: recordedParticipants,
-                        initialNotes: recordedNotes
+                        initialNotes: recordedNotes,
+                        initialTemplate: recordedTemplate,
+                        initialCustomTemplateId: recordedCustomTemplateId
                     )
                     .environmentObject(meetingStore)
                 }

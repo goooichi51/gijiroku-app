@@ -5,14 +5,16 @@ struct MeetingCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: MeetingCreationViewModel
 
-    init(audioFileURL: URL, audioDuration: TimeInterval, initialTitle: String = "", initialLocation: String = "", initialParticipants: [String] = [], initialNotes: String? = nil) {
+    init(audioFileURL: URL, audioDuration: TimeInterval, initialTitle: String = "", initialLocation: String = "", initialParticipants: [String] = [], initialNotes: String? = nil, initialTemplate: MeetingTemplate = .standard, initialCustomTemplateId: UUID? = nil) {
         _viewModel = StateObject(wrappedValue: MeetingCreationViewModel(
             audioFileURL: audioFileURL,
             audioDuration: audioDuration,
             initialTitle: initialTitle,
             initialLocation: initialLocation,
             initialParticipants: initialParticipants,
-            initialNotes: initialNotes
+            initialNotes: initialNotes,
+            initialTemplate: initialTemplate,
+            initialCustomTemplateId: initialCustomTemplateId
         ))
     }
 

@@ -36,13 +36,15 @@ class MeetingCreationViewModel: ObservableObject {
         isTranscribing || isSummarizing
     }
 
-    init(audioFileURL: URL, audioDuration: TimeInterval, initialTitle: String = "", initialLocation: String = "", initialParticipants: [String] = [], initialNotes: String? = nil) {
+    init(audioFileURL: URL, audioDuration: TimeInterval, initialTitle: String = "", initialLocation: String = "", initialParticipants: [String] = [], initialNotes: String? = nil, initialTemplate: MeetingTemplate = .standard, initialCustomTemplateId: UUID? = nil) {
         self.audioFileURL = audioFileURL
         self.audioDuration = audioDuration
         self.title = initialTitle
         self.location = initialLocation
         self.participants = initialParticipants
         self.notes = initialNotes
+        self.selectedTemplate = initialTemplate
+        self.selectedCustomTemplateId = initialCustomTemplateId
     }
 
     deinit {

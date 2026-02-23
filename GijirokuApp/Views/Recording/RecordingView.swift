@@ -4,7 +4,7 @@ struct RecordingView: View {
     @StateObject private var viewModel = RecordingViewModel()
     @Environment(\.dismiss) private var dismiss
 
-    var onComplete: ((URL, TimeInterval, String, String, [String], String?) -> Void)?
+    var onComplete: ((URL, TimeInterval, String, String, [String], String?, MeetingTemplate, UUID?) -> Void)?
 
     var body: some View {
         NavigationStack {
@@ -34,12 +34,19 @@ struct RecordingView: View {
                             viewModel.isMinimalMode.toggle()
                         }
                     } label: {
-                        Image(systemName: viewModel.isMinimalMode
-                              ? "arrow.up.left.and.arrow.down.right"
-                              : "arrow.down.right.and.arrow.up.left")
-                            .foregroundColor(.primary)
+                        if viewModel.isMinimalMode {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .foregroundColor(.accentColor)
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "note.text")
+                                Text("メモ")
+                                    .font(.subheadline)
+                            }
+                            .foregroundColor(.accentColor)
+                        }
                     }
-                    .accessibilityLabel(viewModel.isMinimalMode ? "通常表示に戻す" : "シンプル表示に切替")
+                    .accessibilityLabel(viewModel.isMinimalMode ? "録音画面に戻す" : "メモ画面に切替")
                 }
             }
             .alert("録音を破棄しますか？", isPresented: $viewModel.showDiscardAlert) {
@@ -78,8 +85,8 @@ struct RecordingView: View {
                 await viewModel.startRecording()
             }
             .onAppear {
-                viewModel.onRecordingComplete = { [weak viewModel] url, duration, title, location, participants, notes in
-                    onComplete?(url, duration, title, location, participants, notes)
+                viewModel.onRecordingComplete = { [weak viewModel] url, duration, title, location, participants, notes, template, customTemplateId in
+                    onComplete?(url, duration, title, location, participants, notes, template, customTemplateId)
                     guard viewModel != nil else { return }
                     dismiss()
                 }
@@ -110,6 +117,12 @@ struct RecordingView: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(.top, 12)
+
+                    // テンプレート選択
+                    TemplateSelectionView(
+                        selected: $viewModel.selectedTemplate,
+                        selectedCustomTemplateId: $viewModel.selectedCustomTemplateId
+                    )
 
                     // タイトル
                     VStack(alignment: .leading, spacing: 4) {
@@ -204,6 +217,14 @@ struct RecordingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
                 .accessibilityHidden(true)
+
+            // パルスアニメーション（録音中インジケーター）
+            RecordingPulseView(
+                audioLevel: viewModel.audioLevel,
+                isPaused: viewModel.isPaused
+            )
+            .frame(height: 120)
+            .padding(.top, 4)
         }
         .padding(.bottom, 8)
         .background(Color(.systemGroupedBackground))
@@ -232,23 +253,13 @@ struct RecordingView: View {
 
             Divider()
 
-            // 下部バー（完了ボタンのみ・自然な見た目）
+            // 下部バー
             HStack {
-                // バックグラウンドで動作するテキスト（目立たない）
+                Spacer()
                 Text("バックグラウンドでも動作します")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary.opacity(0.4))
-
                 Spacer()
-
-                Button {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    viewModel.stopRecording()
-                } label: {
-                    Text("完了")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.accentColor)
-                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

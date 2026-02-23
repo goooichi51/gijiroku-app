@@ -248,7 +248,7 @@ xcodebuild archive \
 - [x] エンタイトルメント（Sign in with Apple、In-App Purchases）
 - [x] アプリアイコン（1024x1024）
 - [x] StoreKit 2 実装
-- [x] 98 テスト全通過
+- [x] 102 テスト全通過
 - [x] DB マイグレーション SQL 準備
 
 ### Supabase（完了済み）
@@ -259,11 +259,13 @@ xcodebuild archive \
 - [x] `supabase functions deploy summarize` でEdge Functionデプロイ（v5）
 - [x] デモアカウント作成（test@example.com / TestPass1234）
 
-### Apple Developer（要実行）
+### Apple Developer（Developer Program 承認待ち）
+- [ ] Developer Program 承認（申請済み、24-48時間待ち）
+- [ ] App Store Small Business Program 登録（承認後）
 - [ ] App ID 作成（com.gijiroku.app, com.gijiroku.watch）
 - [ ] App Store Connect でアプリ登録
 - [ ] サブスクリプション商品登録（com.gijiroku.app.standard.monthly）
-- [ ] スクリーンショットアップロード
+- [ ] スクリーンショット撮影・アップロード（6.9インチシミュレータ準備済み）
 - [ ] プライバシー設問回答
 - [ ] 審査用情報入力
 - [ ] Archive → アップロード → 審査提出

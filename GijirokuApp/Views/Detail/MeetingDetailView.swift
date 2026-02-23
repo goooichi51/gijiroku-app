@@ -175,6 +175,9 @@ struct MeetingDetailView: View {
                 }
             }
         }
+        .onChange(of: selectedDesignRaw) {
+            generateSharePDF()
+        }
         .alert("エラー", isPresented: .init(get: { shareError != nil }, set: { if !$0 { shareError = nil } })) {
             Button("OK") { shareError = nil }
         } message: {

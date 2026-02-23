@@ -7,6 +7,7 @@ struct PDFPreviewView: View {
     @State private var pdfData: Data?
     @State private var pdfFileURL: URL?
     @State private var generationError: String?
+    @State private var pdfVersion = 0
 
     private var selectedDesign: PDFDesign {
         PDFDesign(rawValue: selectedDesignRaw) ?? .business
@@ -20,6 +21,7 @@ struct PDFPreviewView: View {
             // PDFプレビュー
             if let data = pdfData {
                 PDFKitView(data: data)
+                    .id(pdfVersion)
             } else if let error = generationError {
                 errorView(error)
             } else {
@@ -40,10 +42,7 @@ struct PDFPreviewView: View {
             }
         }
         .task {
-            generatePDF()
-        }
-        .onChange(of: selectedDesignRaw) {
-            generatePDF()
+            generatePDF(design: selectedDesign)
         }
     }
 
@@ -64,6 +63,7 @@ struct PDFPreviewView: View {
         let isSelected = design.rawValue == selectedDesignRaw
         return Button {
             selectedDesignRaw = design.rawValue
+            generatePDF(design: design)
         } label: {
             VStack(spacing: 6) {
                 // デザイン別ミニチュアプレビュー
@@ -183,7 +183,7 @@ struct PDFPreviewView: View {
                 .multilineTextAlignment(.center)
             Button("再試行") {
                 generationError = nil
-                generatePDF()
+                generatePDF(design: selectedDesign)
             }
             .buttonStyle(.borderedProminent)
         }
@@ -191,12 +191,13 @@ struct PDFPreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func generatePDF() {
-        let data = PDFGenerator().generatePDF(from: meeting, design: selectedDesign)
+    private func generatePDF(design: PDFDesign) {
+        let data = PDFGenerator().generatePDF(from: meeting, design: design)
         if data.isEmpty {
             generationError = "議事録データが不足しているか、PDF生成中にエラーが発生しました。"
         } else {
             pdfData = data
+            pdfVersion += 1
             savePDFToFile(data)
         }
     }

@@ -14,6 +14,15 @@ struct SummaryTabView: View {
 
                 if let summary = meeting.summary {
                     summaryContent(summary)
+
+                    // AI免責注記
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                        Text("AIによる自動生成のため、内容に誤りが含まれる場合があります")
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 8)
                 } else {
                     VStack(spacing: 12) {
                         Image(systemName: "wand.and.stars")
@@ -93,6 +102,13 @@ struct SummaryTabView: View {
                 .font(.subheadline)
             }
 
+            HStack {
+                Image(systemName: meeting.isCustomTemplate ? "doc.text" : meeting.template.icon)
+                    .foregroundColor(.secondary)
+                Text(meeting.effectiveTemplateName)
+            }
+            .font(.subheadline)
+
         }
     }
 
@@ -100,7 +116,7 @@ struct SummaryTabView: View {
     private func summaryContent(_ summary: MeetingSummary) -> some View {
         if meeting.isCustomTemplate {
             customSummary(summary)
-        } else {
+        } else if summary.hasStructuredFields(for: meeting.template) {
             switch meeting.template {
             case .standard:
                 standardSummary(summary)
@@ -111,6 +127,9 @@ struct SummaryTabView: View {
             case .brainstorm:
                 brainstormSummary(summary)
             }
+        } else {
+            // 手動編集後など構造化フィールドがない場合はrawTextを表示
+            Text(summary.rawText)
         }
     }
 

@@ -58,7 +58,7 @@ struct MeetingEditView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("議事録内容")
                         .font(.headline)
-                    TextEditor(text: $viewModel.summaryRawText)
+                    TextEditor(text: $viewModel.summaryDisplayText)
                         .frame(minHeight: 300)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)

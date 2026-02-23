@@ -6,7 +6,7 @@ class MeetingEditViewModel: ObservableObject {
     @Published var date: Date
     @Published var location: String
     @Published var participants: [String]
-    @Published var summaryRawText: String
+    @Published var summaryDisplayText: String
     @Published var saveError: String?
     @Published var isSaved = false
 
@@ -15,13 +15,13 @@ class MeetingEditViewModel: ObservableObject {
     private var originalTitle: String
     private var originalLocation: String
     private var originalParticipants: [String]
-    private var originalSummaryRawText: String
+    private var originalSummaryDisplayText: String
 
     var hasUnsavedChanges: Bool {
         title != originalTitle ||
         location != originalLocation ||
         participants != originalParticipants ||
-        summaryRawText != originalSummaryRawText
+        summaryDisplayText != originalSummaryDisplayText
     }
 
     init(meeting: Meeting) {
@@ -30,11 +30,23 @@ class MeetingEditViewModel: ObservableObject {
         self.date = meeting.date
         self.location = meeting.location
         self.participants = meeting.participants
-        self.summaryRawText = meeting.summary?.rawText ?? meeting.transcriptionText ?? ""
+
+        // 要約タブと同じ形式の表示用テキストを生成
+        let displayText: String
+        if let summary = meeting.summary {
+            displayText = summary.displayText(
+                for: meeting.template,
+                isCustomTemplate: meeting.isCustomTemplate,
+                customTemplateName: meeting.effectiveTemplateName
+            )
+        } else {
+            displayText = meeting.transcriptionText ?? ""
+        }
+        self.summaryDisplayText = displayText
         self.originalTitle = meeting.title
         self.originalLocation = meeting.location
         self.originalParticipants = meeting.participants
-        self.originalSummaryRawText = meeting.summary?.rawText ?? meeting.transcriptionText ?? ""
+        self.originalSummaryDisplayText = displayText
     }
 
     func setStore(_ store: MeetingStore) {
@@ -51,8 +63,10 @@ class MeetingEditViewModel: ObservableObject {
         meeting.date = date
         meeting.location = location
         meeting.participants = participants
-        if var summary = meeting.summary {
-            summary.rawText = summaryRawText
+        if meeting.summary != nil {
+            // 手動編集後は構造化フィールドをクリアし、編集テキストをrawTextに保存
+            var summary = MeetingSummary(rawText: summaryDisplayText)
+            summary.rawText = summaryDisplayText
             meeting.summary = summary
         }
         meetingStore?.update(meeting)
